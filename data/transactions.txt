@@ -1,0 +1,123 @@
+Banking Transaction & Financial Analysis — Report
+Rows: 120
+      txn_ref account_no     customer         type     counterparty    amount       date    channel     signed
+TXNDA8A473D4D 2601299501    Rahul S R transfer_out              ATM  10279.07 2026-09-29       Card  -10279.07
+TXN3944892C39 2601315505     Asha Rao transfer_out    Rent Transfer  23518.53 2026-09-29       Card  -23518.53
+TXNA0B278A28D 2601301204   Sarvesh MT      deposit    Salary Credit  24635.66 2026-10-01     Branch   24635.66
+TXND977A2E52B 2601315506 Vikram Patil   withdrawal              ATM  10328.14 2026-10-01 NetBanking  -10328.14
+TXN52CECBCF0B 2601315506 Vikram Patil   withdrawal Electricity Bill  13787.22 2026-10-01     Branch  -13787.22
+TXNBA2F76E33C 2601299501    Rahul S R  transfer_in    Salary Credit  24070.85 2026-10-02        UPI   24070.85
+TXN664679FF3E 2601315506 Vikram Patil      deposit Electricity Bill  22279.13 2026-10-03        ATM   22279.13
+TXN3F1ACC62E2 2601315505     Asha Rao transfer_out      Online Cart  22176.20 2026-10-04       Card  -22176.20
+TXN414E4C0D4B 2601298902 P Kavi Arasu   withdrawal    Rent Transfer  14685.17 2026-10-05        UPI  -14685.17
+TXN3BC640BA6D 2601301204   Sarvesh MT  transfer_in      Online Cart   1454.59 2026-10-07        UPI    1454.59
+TXN3309DDF2EC 2601301204   Sarvesh MT   withdrawal              ATM  11731.71 2026-10-08       Card  -11731.71
+TXN4C927952FD 2601299501    Rahul S R   withdrawal      Online Cart  23957.56 2026-10-09     Branch  -23957.56
+TXNCFF3467D38 2601315505     Asha Rao      deposit    Salary Credit  21788.86 2026-10-10        ATM   21788.86
+TXND1FF5A95B3 2601299501    Rahul S R   withdrawal      Online Cart  16561.82 2026-10-10       Card  -16561.82
+TXNCB0DDAFC95 2601299003  Prachodna B  transfer_in              ATM  20905.79 2026-10-10        UPI   20905.79
+TXNFBED7CF90E 2601315505     Asha Rao   withdrawal      FD Interest  15536.78 2026-10-10        ATM  -15536.78
+TXN47B9908D53 2601315506 Vikram Patil  transfer_in     UPI-Merchant  10663.66 2026-10-11        UPI   10663.66
+TXNC9DE102886 2601315505     Asha Rao      deposit      FD Interest  21642.22 2026-10-11       Card   21642.22
+TXNC266BEBD9F 2601315505     Asha Rao transfer_out              ATM  22465.72 2026-10-11       Card  -22465.72
+TXN6967DB98BD 2601301204   Sarvesh MT   withdrawal    Salary Credit  11452.88 2026-10-11 NetBanking  -11452.88
+TXN69693607FA 2601315505     Asha Rao      deposit    Rent Transfer   6894.71 2026-10-12        ATM    6894.71
+TXN98A48209D8 2601315506 Vikram Patil      deposit      FD Interest  18821.77 2026-10-12 NetBanking   18821.77
+TXNF86D702048 2601315505     Asha Rao   withdrawal    Rent Transfer  88167.68 2026-10-13       Card  -88167.68
+TXN6BA18F3F16 2601315506 Vikram Patil   withdrawal Electricity Bill   2507.72 2026-10-13     Branch   -2507.72
+TXNC649E4EFDA 2601315506 Vikram Patil   withdrawal    Rent Transfer   3859.77 2026-10-14        UPI   -3859.77
+TXNDAA07CEBAE 2601299003  Prachodna B  transfer_in     UPI-Merchant  18869.25 2026-10-14        UPI   18869.25
+TXN3288D3B9BD 2601298902 P Kavi Arasu   withdrawal      FD Interest   1587.26 2026-10-15        UPI   -1587.26
+TXN38756EB02F 2601298902 P Kavi Arasu   withdrawal Electricity Bill  16142.73 2026-10-17 NetBanking  -16142.73
+TXNEF951BE300 2601299003  Prachodna B   withdrawal    Salary Credit  21122.80 2026-10-17        UPI  -21122.80
+TXN0465CA4871 2601301204   Sarvesh MT      deposit Electricity Bill  17895.91 2026-10-18 NetBanking   17895.91
+TXN395F2E7C29 2601315506 Vikram Patil  transfer_in     UPI-Merchant   4968.76 2026-10-19        UPI    4968.76
+TXN1F65758F07 2601301204   Sarvesh MT  transfer_in      FD Interest  24282.74 2026-10-20        UPI   24282.74
+TXND7D605F6CF 2601299501    Rahul S R   withdrawal      FD Interest 237592.26 2026-10-20 NetBanking -237592.26
+TXN93737E5F8C 2601299501    Rahul S R   withdrawal      Online Cart   7979.20 2026-10-20        ATM   -7979.20
+TXNAE5754A4C1 2601298902 P Kavi Arasu   withdrawal      FD Interest   3040.42 2026-10-20       Card   -3040.42
+TXN0C9B885436 2601315506 Vikram Patil transfer_out     UPI-Merchant  14235.13 2026-10-20 NetBanking  -14235.13
+TXN805A60CE43 2601301204   Sarvesh MT   withdrawal Electricity Bill 187481.19 2026-10-21     Branch -187481.19
+TXN2E830A835B 2601315505     Asha Rao   withdrawal    Salary Credit    210.07 2026-10-22       Card    -210.07
+TXNF7C0E4D969 2601299501    Rahul S R      deposit      FD Interest  11520.25 2026-10-23     Branch   11520.25
+TXN8B81C379E0 2601315506 Vikram Patil      deposit     UPI-Merchant   5760.71 2026-10-24        UPI    5760.71
+TXN29B6D009BD 2601299003  Prachodna B  transfer_in      Online Cart   5452.60 2026-10-25       Card    5452.60
+TXN07F3B91837 2601315506 Vikram Patil      deposit    Rent Transfer   7624.59 2026-10-25        UPI    7624.59
+TXN3560940C58 2601315506 Vikram Patil  transfer_in              ATM  23760.98 2026-10-25        ATM   23760.98
+TXNAAEDE47D85 2601299501    Rahul S R      deposit Electricity Bill   5513.07 2026-10-26        ATM    5513.07
+TXNF301E28DFA 2601299003  Prachodna B transfer_out      FD Interest   2516.00 2026-10-26       Card   -2516.00
+TXN09283CE32F 2601315505     Asha Rao      deposit     UPI-Merchant  10295.09 2026-10-28        UPI   10295.09
+TXN608DDE2D55 2601315505     Asha Rao transfer_out    Rent Transfer  18451.84 2026-10-28        UPI  -18451.84
+TXNA7C4E192A2 2601315506 Vikram Patil   withdrawal      Online Cart   9587.65 2026-10-29 NetBanking   -9587.65
+TXN15E07FDE9D 2601301204   Sarvesh MT   withdrawal      FD Interest   6856.21 2026-10-29       Card   -6856.21
+TXNCC9B50EE09 2601315505     Asha Rao      deposit      FD Interest  11673.18 2026-10-30        UPI   11673.18
+TXNC2A93A2994 2601315506 Vikram Patil   withdrawal    Salary Credit  23938.88 2026-10-31        UPI  -23938.88
+TXN16A89E48AE 2601315506 Vikram Patil   withdrawal     UPI-Merchant  21623.15 2026-10-31        UPI  -21623.15
+TXNC6642B97D8 2601299003  Prachodna B transfer_out    Rent Transfer  19627.37 2026-10-31     Branch  -19627.37
+TXN06AE50B8EB 2601299003  Prachodna B      deposit    Salary Credit   8388.96 2026-10-31        UPI    8388.96
+TXN5948B10F11 2601299003  Prachodna B   withdrawal      FD Interest  16788.07 2026-10-31     Branch  -16788.07
+TXNF6A2FF85E5 2601315505     Asha Rao transfer_out     UPI-Merchant  16259.07 2026-10-31     Branch  -16259.07
+TXN59B5085911 2601299003  Prachodna B      deposit    Rent Transfer  23584.16 2026-11-02 NetBanking   23584.16
+TXN77C08E9ED9 2601299501    Rahul S R transfer_out Electricity Bill   2909.87 2026-11-02       Card   -2909.87
+TXN644DF3326F 2601299501    Rahul S R      deposit      FD Interest  15172.41 2026-11-03        UPI   15172.41
+TXN93623A6DBB 2601299501    Rahul S R  transfer_in              ATM   1300.79 2026-11-03        UPI    1300.79
+TXN4074D0A978 2601315505     Asha Rao   withdrawal              ATM   7605.59 2026-11-03     Branch   -7605.59
+TXN897C44E4E7 2601301204   Sarvesh MT      deposit     UPI-Merchant  12836.25 2026-11-04        UPI   12836.25
+TXNE3561767F3 2601298902 P Kavi Arasu   withdrawal    Salary Credit  13671.81 2026-11-04        ATM  -13671.81
+TXN51643D152F 2601299003  Prachodna B  transfer_in    Salary Credit  21545.42 2026-11-04       Card   21545.42
+TXN63476DADD1 2601315506 Vikram Patil      deposit      FD Interest  12670.69 2026-11-07        ATM   12670.69
+TXN3A7E2A798A 2601301204   Sarvesh MT  transfer_in      Online Cart    431.02 2026-11-07        ATM     431.02
+TXNF0FD63423F 2601299003  Prachodna B  transfer_in              ATM   3940.60 2026-11-07       Card    3940.60
+TXNA4903662AC 2601315506 Vikram Patil   withdrawal      Online Cart   9460.83 2026-11-08     Branch   -9460.83
+TXN974A6CE72B 2601315506 Vikram Patil      deposit Electricity Bill    805.75 2026-11-08     Branch     805.75
+TXNABDA21B809 2601299501    Rahul S R   withdrawal    Rent Transfer  23854.64 2026-11-09 NetBanking  -23854.64
+TXN2F6620FDA7 2601315505     Asha Rao  transfer_in    Salary Credit   7546.91 2026-11-09       Card    7546.91
+TXNC2601CB604 2601315505     Asha Rao   withdrawal     UPI-Merchant   4772.22 2026-11-09 NetBanking   -4772.22
+TXN55ED8299E6 2601301204   Sarvesh MT   withdrawal    Salary Credit   4233.82 2026-11-10       Card   -4233.82
+TXNAE89B47AAA 2601315506 Vikram Patil transfer_out    Rent Transfer   1970.78 2026-11-10       Card   -1970.78
+TXN2B602D6FA0 2601299501    Rahul S R  transfer_in      Online Cart  11724.77 2026-11-10     Branch   11724.77
+TXNEB66DEA915 2601299003  Prachodna B  transfer_in     UPI-Merchant   7051.46 2026-11-10        ATM    7051.46
+TXNF0B6488400 2601298902 P Kavi Arasu      deposit    Salary Credit  13919.95 2026-11-11 NetBanking   13919.95
+TXN67E4DC2467 2601301204   Sarvesh MT  transfer_in              ATM   2489.00 2026-11-11 NetBanking    2489.00
+TXNEAB20FBE0D 2601301204   Sarvesh MT transfer_out      FD Interest   7077.32 2026-11-11        ATM   -7077.32
+TXN5977617EFB 2601298902 P Kavi Arasu transfer_out              ATM  18725.94 2026-11-12        ATM  -18725.94
+TXNA4152EC241 2601299501    Rahul S R      deposit Electricity Bill  14790.06 2026-11-12        ATM   14790.06
+TXN0C51F90375 2601315506 Vikram Patil transfer_out      FD Interest  14085.11 2026-11-12     Branch  -14085.11
+TXN568DE6CDFE 2601299501    Rahul S R      deposit Electricity Bill 101666.91 2026-11-12     Branch  101666.91
+TXN7CAC495E55 2601315506 Vikram Patil   withdrawal      Online Cart  11936.86 2026-11-12 NetBanking  -11936.86
+TXNFD4BDE9381 2601298902 P Kavi Arasu   withdrawal    Rent Transfer 109796.59 2026-11-13        ATM -109796.59
+TXNB4D4ED7CC1 2601301204   Sarvesh MT   withdrawal      FD Interest  21758.65 2026-11-13       Card  -21758.65
+TXN6C12759E85 2601315506 Vikram Patil transfer_out      FD Interest  21411.88 2026-11-13        UPI  -21411.88
+TXN68E969FE22 2601299003  Prachodna B transfer_out Electricity Bill   6787.24 2026-11-14 NetBanking   -6787.24
+TXN0A0232473C 2601315505     Asha Rao transfer_out    Salary Credit  15929.10 2026-11-14        ATM  -15929.10
+TXN96671C1F37 2601315506 Vikram Patil      deposit              ATM  13656.76 2026-11-14        UPI   13656.76
+TXNE915BEF875 2601298902 P Kavi Arasu transfer_out      FD Interest  14821.76 2026-11-14        ATM  -14821.76
+TXN2CB4E9D152 2601315505     Asha Rao      deposit      FD Interest  13576.60 2026-11-15        ATM   13576.60
+TXN49A4ECF7D6 2601298902 P Kavi Arasu   withdrawal      Online Cart  14563.67 2026-11-15        UPI  -14563.67
+TXN47D08904B7 2601298902 P Kavi Arasu transfer_out      FD Interest   7768.73 2026-11-15       Card   -7768.73
+TXN0B7849C987 2601315506 Vikram Patil      deposit     UPI-Merchant  15755.61 2026-11-15 NetBanking   15755.61
+TXNB82506887F 2601301204   Sarvesh MT transfer_out      FD Interest   6898.04 2026-11-16        ATM   -6898.04
+TXNF49DC5818D 2601299003  Prachodna B transfer_out      FD Interest  21829.74 2026-11-17     Branch  -21829.74
+TXNA49C42AC80 2601315506 Vikram Patil  transfer_in      Online Cart  24521.91 2026-11-17        UPI   24521.91
+TXN9B5958A0DF 2601299501    Rahul S R   withdrawal     UPI-Merchant  10669.57 2026-11-18     Branch  -10669.57
+TXN50F3E1E86C 2601298902 P Kavi Arasu transfer_out Electricity Bill   2312.49 2026-11-18        UPI   -2312.49
+TXN0B96E19F22 2601315505     Asha Rao      deposit    Rent Transfer   9602.80 2026-11-19       Card    9602.80
+TXN54DD5E2677 2601315506 Vikram Patil      deposit    Rent Transfer   5735.63 2026-11-20        UPI    5735.63
+TXN58D05C8A99 2601315506 Vikram Patil   withdrawal      FD Interest  17546.73 2026-11-20 NetBanking  -17546.73
+TXN94C730C8A8 2601298902 P Kavi Arasu transfer_out      FD Interest  18623.45 2026-11-20       Card  -18623.45
+TXN93382401FE 2601301204   Sarvesh MT  transfer_in    Rent Transfer   2037.24 2026-11-20        UPI    2037.24
+TXN31282C865D 2601299003  Prachodna B   withdrawal              ATM  14479.76 2026-11-21     Branch  -14479.76
+TXN80E2D80302 2601301204   Sarvesh MT   withdrawal              ATM  22311.06 2026-11-21       Card  -22311.06
+TXNA0AD050423 2601298902 P Kavi Arasu      deposit Electricity Bill  13968.37 2026-11-22     Branch   13968.37
+TXN308082BA79 2601299501    Rahul S R   withdrawal    Salary Credit   3484.92 2026-11-23        UPI   -3484.92
+TXN233511B78C 2601298902 P Kavi Arasu      deposit    Rent Transfer   2153.17 2026-11-24     Branch    2153.17
+TXNFC4FF968D1 2601298902 P Kavi Arasu  transfer_in      Online Cart   4808.46 2026-11-24        UPI    4808.46
+TXNEF36F78CC1 2601298902 P Kavi Arasu      deposit    Salary Credit  11476.54 2026-11-24     Branch   11476.54
+TXNBF1F22FDA6 2601315505     Asha Rao   withdrawal      Online Cart  14675.07 2026-11-25 NetBanking  -14675.07
+TXN9948A40B77 2601315505     Asha Rao  transfer_in Electricity Bill   3872.73 2026-11-25        UPI    3872.73
+TXNA3B71F534E 2601301204   Sarvesh MT      deposit              ATM  19603.19 2026-11-26       Card   19603.19
+TXN8EB7FE53E4 2601298902 P Kavi Arasu transfer_out     UPI-Merchant   7109.36 2026-11-26 NetBanking   -7109.36
+TXN7670DFA149 2601299003  Prachodna B   withdrawal    Salary Credit  12291.24 2026-11-26 NetBanking  -12291.24
+TXN865B37BC68 2601298902 P Kavi Arasu      deposit     UPI-Merchant   5877.76 2026-11-27 NetBanking    5877.76
+TXN7D472A6D0C 2601299501    Rahul S R   withdrawal Electricity Bill  24498.99 2026-11-27     Branch  -24498.99
+TXN39644A25D3 2601299003  Prachodna B transfer_out     UPI-Merchant   1328.79 2026-11-27        ATM   -1328.79
