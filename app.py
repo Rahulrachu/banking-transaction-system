@@ -1,652 +1,530 @@
-"""Banking Transaction & Financial Analysis System - Group 4 (Python Activity 3).
+"""Banking Transaction & Financial Analysis System
+Python Activity 3 · Group 4
 
-Apple-inspired premium dashboard (Streamlit). Covers: data structures,
-NumPy/Pandas, regex, web scraping (with fallback), CSV/JSON/text/binary
-storage + statements.
-Extras: monthly money insights + savings goal projection; one-click
-statement export.
-
-Run:  streamlit run app.py
-Design: Apple.com language - SF stack, huge tight headlines, generous
-whitespace, two grays + one blue, pill actions, bento cards, restrained
-fade-up reveals + hover lift. No emojis (no glyph tofu).
+Run with:  streamlit run app.py
 """
 
 from __future__ import annotations
 
-import html
-import sys
-from pathlib import Path
+from datetime import date, timedelta
 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 from src import analysis, storage
-from src.data_structures import AccountStore, TransactionHistory, PendingQueue, UndoStack, group_by_account
+from src.bank import MIN_BALANCE, BankError
 from src.fraud import flag_suspicious, fraud_summary
-from src.insights import monthly_insights, goal_projection
-from src.scraper import SAMPLE_CUSTOMERS, generate_transactions, scrape_live
-from src.validation import validate_account_no, validate_txn_ref, validate_pan, validate_phone, generate_txn_ref
-
-st.set_page_config(
-    page_title="Banking Transaction & Financial Analysis",
-    layout="wide",
-    initial_sidebar_state="expanded",
+from src.insights import goal_projection, monthly_insights
+from src.loan import SPREADS, amortization, eligibility, emi, monthly_income
+from src.risk import add_risk_scores, risk_distribution
+from src.sample_data import build_demo_bank
+from src.scraper import fetch_rbi_rates, load_snapshot
+from src.validation import (
+    extract_refs, validate_account_no, validate_email, validate_pan,
+    validate_phone, validate_txn_ref,
 )
 
-# ---------------- Apple design system ----------------
-CSS = """
+st.set_page_config(page_title="Group 4 Bank · Transaction & Financial Analysis", page_icon="🏦",
+                   layout="wide", initial_sidebar_state="collapsed")
+
+# ----------------------------------------------------------------- design
+INK, MUTED, LINE, BG = "#0F172A", "#64748B", "#E2E8F0", "#F8FAFC"
+BRAND, GREEN, RED, AMBER = "#1E3A8A", "#047857", "#B91C1C", "#B45309"
+
+st.markdown(f"""
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-:root{
-  --ink:#1d1d1f; --gray:#86868b; --gray-2:#6e6e73; --bg:#f5f5f7;
-  --card:#ffffff; --blue:#0071e3; --blue-2:#0066cc; --red:#d70015;
-  --border:#e8e8ed; --radius:20px;
-  --ease:cubic-bezier(0.22,1,0.36,1); --ease-btn:cubic-bezier(0.4,0,0.6,1);
-}
-html,body,[data-testid="stAppViewContainer"],[data-testid="stApp"],.main,.block-container{
-  background:var(--bg) !important; color:var(--ink) !important;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Helvetica Neue",Arial,sans-serif !important;
-  -webkit-font-smoothing:antialiased;
-}
-.block-container{padding:0 2rem 4rem !important; max-width:1200px !important; margin:0 auto !important;}
-h1,h2,h3,h4,p,span,div,label,button,input,select{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Helvetica Neue",Arial,sans-serif !important;}
-.num,.kpi-num,td.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;}
-header[data-testid="stHeader"],#MainMenu,footer,[data-testid="stToolbar"],[data-testid="stDecoration"],
-[data-testid="stStatusWidget"],.stDeployButton,div[data-testid="stStatusWidget"]{display:none !important;}
-[data-testid="stSidebar"]{background:#ffffff !important; border-right:1px solid var(--border) !important;}
-[data-testid="stSidebar"] .block-container{padding:2rem 1.5rem !important;}
-[data-testid="stSidebar"] p,[data-testid="stSidebar"] span{color:var(--gray) !important;}
-/* ---- hero (Apple product-hero) ---- */
-.hero{text-align:center; padding:64px 16px 8px;}
-.hero-eyebrow{font-size:13px; font-weight:600; letter-spacing:.02em; color:var(--blue);}
-.hero h1{font-size:56px; font-weight:600; line-height:1.05; letter-spacing:-0.374px; color:var(--ink); margin:12px 0 12px;}
-.hero-sub{font-size:21px; font-weight:400; line-height:1.38; letter-spacing:0.2px; color:var(--gray); max-width:720px; margin:0 auto;}
-.hero-pills{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:22px;}
-.pill{display:inline-flex; align-items:center; font-size:12px; font-weight:600; letter-spacing:.01em;
-  padding:7px 14px; border-radius:980px; border:1px solid var(--border); background:#fff; color:var(--gray-2);}
-.pill.blue{background:var(--blue); color:#fff; border-color:var(--blue);}
-.pill.dark{background:var(--ink); color:#fff; border-color:var(--ink);}
-/* ---- sections: one idea per scene ---- */
-.sec{margin:64px 0 28px; text-align:left;}
-.sec-eyebrow{font-size:13px; font-weight:600; color:var(--blue); letter-spacing:.02em;}
-.sec h2{font-size:32px; font-weight:600; line-height:1.12; letter-spacing:-0.28px; margin:6px 0 0; color:var(--ink);}
-.sec p{font-size:17px; font-weight:400; line-height:1.47; color:var(--gray); margin:8px 0 0; max-width:720px;}
-/* ---- bento KPI tiles ---- */
-.kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin:8px 0 0;}
-.kpi{background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px 22px;
-  transition:transform .32s var(--ease), box-shadow .32s var(--ease);}
-.kpi:hover{transform:translateY(-3px); box-shadow:0 16px 40px rgba(0,0,0,.08);}
-.kpi.hero{background:var(--ink); color:#fff; border-color:var(--ink);}
-.kpi-lbl{font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--gray);}
-.kpi.hero .kpi-lbl{color:#aeaeb2;}
-.kpi-num{font-size:32px; font-weight:600; letter-spacing:-0.022em; margin:8px 0 4px; color:var(--ink);}
-.kpi.hero .kpi-num{font-size:36px; color:#fff;}
-.kpi-sub{font-size:13px; line-height:1.4; color:var(--gray);}
-.kpi.hero .kpi-sub{color:#d2d2d7;}
-.kpi-num.neg{color:var(--red);} .kpi-num.pos{color:#0071e3;}
-/* ---- cards ---- */
-.card{background:var(--card); border:1px solid var(--border); border-radius:20px; padding:26px;
-  transition:transform .32s var(--ease), box-shadow .32s var(--ease);}
-.card:hover{transform:translateY(-2px); box-shadow:0 16px 40px rgba(0,0,0,.07);}
-.chart-title{font-size:17px; font-weight:600; letter-spacing:-0.01em; color:var(--ink); margin:0 0 2px;}
-.chart-sub{font-size:13px; color:var(--gray); margin:0 0 12px;}
-.callout{border-radius:16px; padding:16px 18px; font-size:14px; line-height:1.5; border:1px solid var(--border); background:#fff; color:var(--gray-2);}
-.callout.good{background:#eef7ff; border-color:#d2e5ff; color:#003a72;}
-.callout.warn{background:#fff4e6; border-color:#ffe1b8; color:#6b3b00;}
-/* ---- buttons: Apple pills ---- */
-.stButton>button,[data-testid="stDownloadButton"] button{
-  border-radius:980px !important; border:1px solid var(--blue) !important; background:var(--blue) !important;
-  color:#fff !important; font-weight:600 !important; font-size:15px !important; padding:.55rem 1.6rem !important;
-  transition:transform .24s var(--ease-btn), background .24s var(--ease-btn) !important;}
-.stButton>button:hover,[data-testid="stDownloadButton"] button:hover{background:var(--blue-2) !important; transform:scale(1.02);}
-.stButton>button:active{transform:scale(0.96);}
-[data-testid="stSidebar"] .stButton>button{width:100%;}
-[data-testid="stWidgetLabel"] p{font-weight:600 !important; font-size:14px !important; color:var(--ink) !important;}
-[data-testid="stWidgetLabel"] p::first-letter{color:var(--ink);}
-/* inputs */
-[data-testid="stTextInput"],[data-testid="stNumberInput"]{border-radius:980px !important;}
-/* ---- custom Apple tables (no truncated edges) ---- */
-.apple-table-wrap{background:#fff; border:1px solid var(--border); border-radius:16px; overflow:hidden; margin:8px 0 4px;}
-table.apple-table{width:100%; border-collapse:collapse; font-size:14px; line-height:1.4;}
-table.apple-table th{font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--gray);
-  text-align:left; padding:12px 16px; background:#fbfbfd; border-bottom:1px solid var(--border);}
-table.apple-table td{padding:12px 16px; color:var(--ink); border-bottom:1px solid var(--border); vertical-align:top;}
-table.apple-table tr:last-child td{border-bottom:none;}
-table.apple-table tr{transition:background .24s var(--ease-btn);}
-table.apple-table tbody tr:hover{background:#f5f5f7;}
-table.apple-table td.num,table.apple-table th.num{text-align:right; font-variant-numeric:tabular-nums;}
-.table-caption{font-size:13px; color:var(--gray); margin:0 0 8px;}
-.table-title{font-size:17px; font-weight:600; color:var(--ink); margin:0 0 4px;}
-/* ---- scrape status bento ---- */
-.scrape-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:10px 0 4px;}
-.scrape-tile{background:#fbfbfd; border:1px solid var(--border); border-radius:16px; padding:16px;}
-.scrape-lbl{font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--gray);}
-.scrape-val{font-size:17px; font-weight:600; color:var(--ink); margin-top:4px; word-break:break-word;}
-.scrape-val.small{font-size:13px; font-weight:500; color:var(--gray-2);}
-/* ---- statement ---- */
-.statement{background:#1d1d1f; color:#e8e8ed; border-radius:16px; padding:20px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-  font-size:12.5px; line-height:1.6; white-space:pre-wrap; word-break:break-word; max-height:320px; overflow:auto;}
-/* ---- reveal motion (Apple-restrained fade-up, pure CSS so it never hides content) ---- */
-@keyframes fadeUp{from{opacity:0; transform:translateY(18px);} to{opacity:1; transform:none;}}
-.reveal{animation:fadeUp .7s var(--ease) both;}
-.reveal.d1{animation-delay:.08s;} .reveal.d2{animation-delay:.16s;} .reveal.d3{animation-delay:.24s;} .reveal.d4{animation-delay:.32s;}
-@media (prefers-reduced-motion: reduce){.reveal{opacity:1; transform:none; animation:none;} *{transition:none !important; animation:none !important;}}
-.footer{margin-top:72px; text-align:center; font-size:13px; line-height:1.5; color:var(--gray);}
-.footer .rule{width:40px; height:1px; background:var(--border); margin:0 auto 16px;}
-.caption{font-size:13px; color:var(--gray);}
-@media (max-width: 900px){.kpi-row{grid-template-columns:repeat(2,1fr);} .scrape-grid{grid-template-columns:repeat(2,1fr);}
- .hero h1{font-size:40px;} .hero-sub{font-size:18px;}}
-"""
+html, body, [class*="css"], .stApp {{ font-family: 'Inter', system-ui, sans-serif; }}
+.stApp {{ background: {BG}; }}
+#MainMenu, footer, header[data-testid="stHeader"], [data-testid="stToolbar"] {{ display: none; }}
+.block-container {{ padding: 1.6rem 2.2rem 3rem; max-width: 1280px; }}
+h1, h2, h3 {{ color: {INK}; letter-spacing: -0.01em; }}
 
-st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)
-# Count-up (Apple fade-up reveal is pure CSS animation above). Streamlit markdown keeps <script> in page.
-# Numbers are rendered server-side; motion is pure CSS (Streamlit never runs markdown <script>).
+.topbar {{ display:flex; justify-content:space-between; align-items:center; margin-bottom: .4rem; }}
+.brand {{ display:flex; gap:.75rem; align-items:center; }}
+.logo {{ width:40px; height:40px; border-radius:10px; background:{BRAND}; color:#fff; font-weight:700;
+        display:flex; align-items:center; justify-content:center; font-size:15px; }}
+.brand h1 {{ font-size:1.25rem; margin:0; font-weight:700; }}
+.brand p {{ margin:0; color:{MUTED}; font-size:.85rem; }}
+.chip {{ display:inline-block; padding:.25rem .65rem; border-radius:999px; font-size:.75rem; font-weight:600;
+        background:#fff; border:1px solid {LINE}; color:{MUTED}; margin-left:.35rem; }}
+.chip.live {{ color:{GREEN}; border-color:#A7F3D0; background:#ECFDF5; }}
+
+.kpi {{ background:#fff; border:1px solid {LINE}; border-radius:14px; padding:1rem 1.1rem; height:100%; }}
+.kpi .label {{ font-size:.78rem; color:{MUTED}; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }}
+.kpi .value {{ font-size:1.55rem; font-weight:700; color:{INK}; margin:.25rem 0 .1rem;
+              font-variant-numeric: tabular-nums; white-space:nowrap; }}
+.kpi .sub {{ font-size:.8rem; color:{MUTED}; }}
+.kpi .up {{ color:{GREEN}; font-weight:600; }} .kpi .down {{ color:{RED}; font-weight:600; }}
+
+.section-title {{ font-size:1.05rem; font-weight:700; color:{INK}; margin:.2rem 0 .1rem; }}
+.section-sub {{ font-size:.85rem; color:{MUTED}; margin-bottom:.6rem; }}
+
+div[data-testid="stVerticalBlockBorderWrapper"] {{ background:#fff; border-radius:14px; border-color:{LINE}; }}
+.stTabs [data-baseweb="tab-list"] {{ gap:.25rem; border-bottom:1px solid {LINE}; }}
+.stTabs [data-baseweb="tab"] {{ height:2.6rem; padding:0 1rem; font-weight:600; color:{MUTED}; }}
+.stTabs [aria-selected="true"] {{ color:{BRAND} !important; }}
+.stButton > button, .stDownloadButton > button, .stFormSubmitButton > button {{
+    border-radius:10px; font-weight:600; border:1px solid {BRAND}; background:{BRAND}; color:#fff; }}
+.stButton > button:hover, .stDownloadButton > button:hover, .stFormSubmitButton > button:hover {{
+    background:#1E40AF; border-color:#1E40AF; color:#fff; }}
+.stButton > button p, .stDownloadButton > button p, .stFormSubmitButton > button p {{ color:#fff; }}
+.receipt {{ background:#F1F5F9; border-radius:12px; padding:.9rem 1rem; font-size:.9rem; line-height:1.6; }}
+.receipt b {{ color:{INK}; }}
+.pill {{ padding:.15rem .55rem; border-radius:999px; font-size:.75rem; font-weight:600; }}
+.pill.High {{ background:#FEE2E2; color:{RED}; }} .pill.Medium {{ background:#FEF3C7; color:{AMBER}; }}
+.pill.Low {{ background:#DCFCE7; color:{GREEN}; }}
+.foot {{ color:{MUTED}; font-size:.8rem; text-align:center; margin-top:2rem; }}
+</style>
+""", unsafe_allow_html=True)
 
 
-# ---------------- plotly theme (Apple minimal) ----------------
-FONT = "Inter"
-INK = "#1d1d1f"
-GRAY = "#86868b"
-BLUE = "#0071e3"
-GRID = "#e8e8ed"
-RED = "#d70015"
+def rs(x: float, decimals: int = 0) -> str:
+    """Indian-style rupee formatting: 12,34,567."""
+    neg = x < 0
+    x = abs(round(float(x), decimals))
+    whole, _, frac = f"{x:.{decimals}f}".partition(".")
+    if len(whole) > 3:
+        head, tail = whole[:-3], whole[-3:]
+        head = ",".join([head[max(i - 2, 0):i] for i in range(len(head), 0, -2)][::-1])
+        whole = f"{head},{tail}"
+    return f"{'-' if neg else ''}₹{whole}{'.' + frac if frac else ''}"
 
-def style_fig(fig, title: str = ""):
-    fig.update_layout(
-        font=dict(family=FONT, size=12, color=GRAY),
-        paper_bgcolor="white", plot_bgcolor="white",
-        margin=dict(l=8, r=12, t=20, b=48),
-        legend=dict(font=dict(family=FONT, size=11), bgcolor="rgba(255,255,255,0)",
-                    orientation="h", yanchor="top", y=-0.18, xanchor="left", x=0),
-        hoverlabel=dict(font_family=FONT),
-    )
-    fig.update_xaxes(gridcolor=GRID, zerolinecolor=GRID, linecolor=GRID, tickfont=dict(family=FONT, size=11))
-    fig.update_yaxes(gridcolor=GRID, zerolinecolor=GRID, linecolor=GRID, tickfont=dict(family=FONT, size=11))
+
+def kpi(col, label: str, value: str, sub: str = "") -> None:
+    col.markdown(f"<div class='kpi'><div class='label'>{label}</div><div class='value'>{value}</div>"
+                 f"<div class='sub'>{sub}</div></div>", unsafe_allow_html=True)
+
+
+def section(title: str, sub: str = "") -> None:
+    st.markdown(f"<div class='section-title'>{title}</div>"
+                + (f"<div class='section-sub'>{sub}</div>" if sub else ""), unsafe_allow_html=True)
+
+
+def style(fig, height: int = 320):
+    fig.update_layout(template="plotly_white", height=height, margin=dict(l=8, r=8, t=10, b=8),
+                      font=dict(family="Inter, sans-serif", color=MUTED, size=12),
+                      legend=dict(orientation="h", y=1.08, x=0, title=None), hoverlabel=dict(font_family="Inter"))
+    fig.update_xaxes(showgrid=False, title=None)
+    fig.update_yaxes(gridcolor="#F1F5F9", title=None, zeroline=False)
     return fig
 
-def chart_card(title: str, subtitle: str, fig, key: str):
-    with st.container(border=True):
-        st.markdown(
-            f"<div class='reveal'><div class='chart-title'>{html.escape(title)}</div>"
-            f"<div class='chart-sub'>{html.escape(subtitle)}</div></div>",
-            unsafe_allow_html=True,
-        )
-        st.plotly_chart(fig, width="stretch", key=key)
 
-def apple_table(df: pd.DataFrame, num_cols: list[str] | None = None) -> str:
-    """Render a compact Apple-styled HTML table (no truncated edges)."""
-    if df is None or len(df) == 0:
-        return "<div class='callout'>No rows to show.</div>"
-    num_cols = set(num_cols or [])
-    cols = list(df.columns)
-    head = "".join(
-        f"<th class='{'num' if c in num_cols else ''}'>{html.escape(str(c))}</th>" for c in cols
-    )
-    rows = []
-    for _, r in df.iterrows():
-        cells = []
-        for c in cols:
-            v = r[c]
-            if c in num_cols and isinstance(v, (int, float)):
-                txt = f"{v:,.2f}" if isinstance(v, float) else f"{v:,}"
-            else:
-                txt = str(v)
-            cells.append(f"<td class='{'num' if c in num_cols else ''}'>{html.escape(txt)}</td>")
-        rows.append("<tr>" + "".join(cells) + "</tr>")
-    return (
-        "<div class='apple-table-wrap'><table class='apple-table'>"
-        f"<thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
-    )
+MONEY = st.column_config.NumberColumn(format="₹ %.2f")
 
-def show_table(title: str, caption: str, df: pd.DataFrame, num_cols: list[str] | None = None):
-    st.markdown(
-        f"<div class='reveal'><div class='table-title'>{html.escape(title)}</div>"
-        f"<div class='table-caption'>{html.escape(caption)}</div></div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(apple_table(df, num_cols), unsafe_allow_html=True)
+# ----------------------------------------------------------------- state
+if "bank" not in st.session_state:
+    st.session_state.bank = build_demo_bank()
+    st.session_state.rates = load_snapshot()
+bank = st.session_state.bank
+rates = st.session_state.rates
 
-# ---------------- session data ----------------
-if "txns" not in st.session_state:
-    st.session_state.txns = generate_transactions(seed=42, n=120)
-    st.session_state.scrape_info = {"ok": False, "url": None, "pcts": [], "raw_chars": 0}
-
-txns: list[dict] = st.session_state.txns
-
-store = AccountStore()
-for c in SAMPLE_CUSTOMERS:
-    store.add({"account_no": c["account_no"], "name": c["name"], "balance": c["balance"], "pan": c["pan"], "branch": c["branch"]})
-history = TransactionHistory()
-for t in txns:
-    history.append(t)
-queue = PendingQueue()
-stack = UndoStack()
-grouped = group_by_account(txns)
-
+txns = bank.history.all()
 df = analysis.to_dataframe(txns)
-daily = analysis.daily_stats(df)
-monthly = analysis.monthly_stats(df)
-yearly = analysis.yearly_stats(df)
-acct_summary = analysis.account_summary(df)
-spend = analysis.spending_by_counterparty(df)
-insights = monthly_insights(df)
-fraud = fraud_summary(df)
+accounts = bank.accounts.all()
+acct_label = {a["account_no"]: f"{a['name']} · {a['account_no']}" for a in accounts}
+acct_numbers = list(acct_label)
 
-# ---------------- hero (Apple product-hero) ----------------
-st.markdown(
-    '<div class="hero reveal">'
-    '<div class="hero-eyebrow">Banking Transaction &amp; Financial Analysis</div>'
-    '<h1>Your money,<br>in focus.</h1>'
-    '<p class="hero-sub">A calm view of accounts, transfers and risk.<br>'
-    'One question first &mdash; is today normal?</p>'
-    '<div class="hero-pills">'
-    '<span class="pill blue">Python Activity 3</span>'
-    '<span class="pill dark">Group 4</span>'
-    '<span class="pill">Streamlit + Pandas + Plotly</span>'
-    '</div></div>',
-    unsafe_allow_html=True,
-)
+# ----------------------------------------------------------------- header
+live = "live" if rates.get("live") else ""
+st.markdown(f"""
+<div class='topbar'>
+  <div class='brand'><div class='logo'>G4</div>
+    <div><h1>Banking Transaction &amp; Financial Analysis</h1>
+    <p>Python Activity 3 · Group 4 · {len(accounts)} accounts · {len(txns):,} transactions</p></div></div>
+  <div><span class='chip {live}'>RBI repo {rates['rates'].get('Policy Repo Rate', 0):.2f}%</span>
+       <span class='chip'>{date.today():%d %b %Y}</span></div>
+</div>""", unsafe_allow_html=True)
 
-# ---------------- sidebar ----------------
-with st.sidebar:
-    st.markdown("Controls", unsafe_allow_html=True)
-    st.caption("Filters apply to KPIs and charts below. Risk threshold is adjustable.")
-    customers = ["All"] + sorted(df["customer"].unique().tolist())
-    sel_cust = st.selectbox("Customer", customers)
-    types = ["All"] + sorted(df["type"].unique().tolist())
-    sel_type = st.selectbox("Transaction type", types)
-    threshold = st.slider("Suspicious threshold (Rs)", 10000, 150000, 50000, 5000)
+tabs = st.tabs(["Overview", "Banking", "Analytics", "Risk monitor", "Loan advisor", "Statements & data", "Market rates"])
 
-    st.divider()
-    st.markdown("Web scraping", unsafe_allow_html=True)
-    if st.button("Try live scrape (RBI / data.gov.in)"):
-        st.session_state.scrape_info = scrape_live(timeout=6)
-        st.toast("Scrape attempt finished")
-    info = st.session_state.scrape_info
-    if info.get("url"):
-        st.caption(f"Source: {info['url']} · {info.get('raw_chars', 0)} chars · figures: {len(info.get('pcts', []))}")
-    else:
-        st.caption("Off by default. Seeded sample keeps the demo offline-safe. Parser extracts % / Rs figures with regex.")
+# ================================================================= OVERVIEW
+with tabs[0]:
+    month_now = pd.Timestamp.today().to_period("M").strftime("%Y-%m")
+    month_prev = (pd.Timestamp.today().to_period("M") - 1).strftime("%Y-%m")
+    monthly = analysis.monthly_stats(df)
+    cur = monthly[monthly["month"] == month_now]
+    prev = monthly[monthly["month"] == month_prev]
+    flagged = flag_suspicious(df)
+    fs = fraud_summary(flagged, len(df))
 
-    st.divider()
-    st.markdown("Storage", unsafe_allow_html=True)
-    if st.button("Save CSV / JSON / TXT / BIN"):
-        paths = storage.save_all(df)
-        storage.save_accounts(SAMPLE_CUSTOMERS)
-        st.success("Saved to `data/`")
-        for k, v in paths.items():
-            st.caption(f"{k.upper()}: {v}")
-    st.caption("Writes transactions.* and accounts.* to the data folder.")
+    spend_now = float(cur["money_out"].sum())
+    spend_prev = float(prev["money_out"].sum()) or 1
+    change = 100 * (spend_now - spend_prev) / spend_prev
+    c = st.columns(4)
+    kpi(c[0], "Total deposits", rs(bank.accounts.total_balance()), f"across {len(accounts)} accounts")
+    kpi(c[1], "Money in this month", rs(cur["money_in"].sum()), f"{int(cur['transactions'].sum())} transactions")
+    kpi(c[2], "Money out this month", rs(spend_now),
+        f"<span class='{'down' if change > 0 else 'up'}'>{change:+.0f}%</span> vs last month")
+    kpi(c[3], "Needs review", f"{fs['flagged']}", f"{fs['high']} high risk · {fs['rate_pct']}% of all")
 
-# ---------------- filters ----------------
-view = df.copy()
-if sel_cust != "All":
-    view = view[view["customer"] == sel_cust]
-if sel_type != "All":
-    view = view[view["type"] == sel_type]
+    st.write("")
+    left, right = st.columns([1.7, 1])
+    with left, st.container(border=True):
+        section("Cash flow", "Monthly money in and out, all accounts")
+        m = monthly.tail(12)
+        fig = go.Figure()
+        fig.add_bar(x=m["month"], y=m["money_in"], name="Money in", marker_color=BRAND)
+        fig.add_bar(x=m["month"], y=m["money_out"], name="Money out", marker_color="#93C5FD")
+        fig.add_scatter(x=m["month"], y=m["net"], name="Net", mode="lines+markers", line=dict(color=INK, width=2))
+        fig.update_layout(barmode="group", bargap=0.3)
+        st.plotly_chart(style(fig, 330), width="stretch")
+    with right, st.container(border=True):
+        section("Where money goes", "Spending by category, last 90 days")
+        recent = df[df["timestamp"] >= pd.Timestamp.today() - pd.Timedelta(days=90)]
+        cat = analysis.spending_by_category(recent).head(7)
+        fig = px.bar(cat.sort_values("amount"), x="amount", y="category", orientation="h",
+                     color_discrete_sequence=[BRAND], text=cat.sort_values("amount")["share_pct"].map(lambda v: f"{v}%"))
+        fig.update_traces(textposition="outside", cliponaxis=False)
+        st.plotly_chart(style(fig, 330), width="stretch")
 
-flagged = flag_suspicious(df, large_threshold=float(threshold))
-net_total = float(view["signed"].sum()) if len(view) else 0.0
-vol_total = float(view["amount"].sum()) if len(view) else 0.0
-flagged_count = len(flagged)
-flagged_rate = (100 * flagged_count / len(df)) if len(df) else 0.0
+    left, right = st.columns([1.7, 1])
+    with left, st.container(border=True):
+        section("Recent activity")
+        rec = pd.DataFrame(bank.history.recent(8))
+        if len(rec):
+            rec["when"] = pd.to_datetime(rec["timestamp"]).dt.strftime("%d %b, %H:%M")
+            rec["signed"] = rec.apply(lambda r: r["amount"] if r["type"] in ("deposit", "transfer_in") else -r["amount"], axis=1)
+            st.dataframe(rec[["when", "customer", "counterparty", "channel", "signed"]], hide_index=True,
+                         width="stretch",
+                         column_config={"when": "Time", "customer": "Customer", "counterparty": "Description",
+                                        "channel": "Channel", "signed": st.column_config.NumberColumn("Amount", format="₹ %.2f")})
+    with right, st.container(border=True):
+        section("Accounts")
+        acc_df = pd.DataFrame(accounts)[["name", "branch", "balance"]].sort_values("balance", ascending=False)
+        st.dataframe(acc_df, hide_index=True, width="stretch",
+                     column_config={"name": "Customer", "branch": "Branch", "balance": st.column_config.NumberColumn("Balance", format="₹ %.2f")})
 
-# ---------------- 01 verdict ----------------
-st.markdown(
-    '<div class="sec reveal"><div class="sec-eyebrow">Overview</div><h2>Is today normal?</h2>'
-    '<p>The verdict first. Detail follows, quietly.</p></div>',
-    unsafe_allow_html=True,
-)
-net_cls = "neg" if net_total < 0 else "pos"
-def rs(v):
-    sign = "- " if v < 0 else ""
-    return f"{sign}Rs {abs(int(round(v))):,}"
-st.markdown(
-    '<div class="kpi-row">'
-    '<div class="kpi hero reveal d1"><div class="kpi-lbl">Net flow</div>'
-    f"<div class='kpi-num num'>{rs(net_total)}</div>"
-    '<div class="kpi-sub">Money in minus money out, in the filtered view.</div></div>'
-    '<div class="kpi reveal d2"><div class="kpi-lbl">Transactions</div>'
-    f"<div class='kpi-num num'>{len(view):,}</div>"
-    f"<div class='kpi-sub'>{len(view)} shown of {len(df)} total.</div></div>"
-    '<div class="kpi reveal d3"><div class="kpi-lbl">Total volume</div>'
-    f"<div class='kpi-num num'>{rs(vol_total)}</div>"
-    '<div class="kpi-sub">Gross amount moved.</div></div>'
-    '<div class="kpi reveal d4"><div class="kpi-lbl">Flagged for review</div>'
-    f"<div class='kpi-num num'>{flagged_count}</div>"
-    f"<div class='kpi-sub'>{flagged_rate:.2f}% of {len(df)}. See Risk below.</div></div>"
-    "</div>",
-    unsafe_allow_html=True,
-)
-if len(view) == 0:
-    st.markdown(
-        '<div class="callout warn reveal">No transactions match the current filters. '
-        "Clear the customer or type filter to see data.</div>",
-        unsafe_allow_html=True,
-    )
-
-# ---------------- 02 cash flow ----------------
-st.markdown(
-    '<div class="sec reveal"><div class="sec-eyebrow">Cash flow</div><h2>How money moved over time</h2>'
-    "<p>One idea per screen. Weekly shape first, then the monthly split.</p></div>",
-    unsafe_allow_html=True,
-)
-
-# FIX (v3): smooth the spiky daily line -> 7-day rolling mean, weekly ticks, no marker clutter.
-if len(daily):
-    daily_sorted = daily.sort_values("day").tail(60).copy()
-    daily_sorted["smooth"] = daily_sorted["net"].rolling(window=7, center=True, min_periods=1).mean()
-    fig_daily = go.Figure()
-    fig_daily.add_trace(go.Scatter(
-        x=daily_sorted["day"], y=daily_sorted["smooth"],
-        mode="lines",
-        line=dict(color=INK, width=2.5, shape="spline", smoothing=0.6),
-        fill="tozeroy", fillcolor="rgba(0,113,227,0.08)",
-        hovertemplate="%{x}<br>Net (7-day): Rs %{y:,.0f}<extra></extra>"))
-    fig_daily.add_hline(y=0, line_color=GRID, line_width=1)
-    style_fig(fig_daily)
-    fig_daily.update_xaxes(tickmode="array", dtick="W-MON", tickformat="%b %d")
-    fig_daily.update_yaxes(title="Net Rs")
-else:
-    fig_daily = None
-
-if len(monthly):
-    m = monthly.copy()
-    fig_monthly = go.Figure()
-    fig_monthly.add_trace(go.Bar(name="In", x=m["month"], y=m["total_in"], marker_color=BLUE,
-                                   hovertemplate="%{x}<br>In: Rs %{y:,.0f}<extra></extra>"))
-    fig_monthly.add_trace(go.Bar(name="Out", x=m["month"], y=m["total_out"], marker_color=INK,
-                                   hovertemplate="%{x}<br>Out: Rs %{y:,.0f}<extra></extra>"))
-    fig_monthly.update_layout(barmode="group", bargap=0.35)
-    style_fig(fig_monthly)
-    fig_monthly.update_yaxes(title="Rs")
-else:
-    fig_monthly = None
-
-c1, c2 = st.columns([3, 2], gap="large")
-if fig_daily is not None:
-    with c1:
-        chart_card("Money in, week by week", "7-day rolling net flow, last 60 days (Rs)", fig_daily, "daily_net_apple")
-if fig_monthly is not None:
-    with c2:
-        chart_card("Monthly in vs out", "Income and spend per month (Rs)", fig_monthly, "monthly_io_apple")
-
-# ---------------- 03 spending ----------------
-st.markdown(
-    '<div class="sec reveal"><div class="sec-eyebrow">Spending</div><h2>Where money goes</h2>'
-    "<p>Sorted bars. Largest spend on top.</p></div>",
-    unsafe_allow_html=True,
-)
-spend_top = spend.head(7).copy() if len(spend) else spend
-if len(spend_top):
-    sp = spend_top.sort_values("spend")
-    palette = [BLUE, INK, "#5aa9e6", "#86868b", "#aeaeb2", "#d2d2d7", "#e8e8ed"]
-    fig_spend = px.bar(
-        sp, x="spend", y="counterparty", orientation="h",
-        color="counterparty", color_discrete_sequence=palette,
-        template="simple_white",
-    )
-    fig_spend.update_layout(showlegend=False)
-    style_fig(fig_spend)
-    fig_spend.update_xaxes(title="Rs spend")
-    fig_spend.update_yaxes(title="")
-else:
-    fig_spend = None
-
-if len(view):
-    mix = view["type"].value_counts().reset_index()
-    mix.columns = ["type", "count"]
-    mix = mix.sort_values("count")
-    fig_mix = px.bar(
-        mix, x="count", y="type", orientation="h",
-        color="type", color_discrete_sequence=[INK, BLUE, GRAY, "#d2d2d7"],
-        template="simple_white",
-    )
-    fig_mix.update_layout(showlegend=False)
-    style_fig(fig_mix)
-    fig_mix.update_xaxes(title="Count")
-    fig_mix.update_yaxes(title="")
-else:
-    fig_mix = None
-
-s1, s2 = st.columns([3, 2], gap="large")
-if fig_spend is not None:
-    with s1:
-        chart_card("Spending by counterparty", "Outflows only, Rs", fig_spend, "spend_apple")
-if fig_mix is not None:
-    with s2:
-        chart_card("Transaction mix", "Count by type, filtered view (sorted)", fig_mix, "mix_apple")
-
-# ---------------- 04 detail tables ----------------
-st.markdown(
-    '<div class="sec reveal"><div class="sec-eyebrow">Detail</div><h2>Working tables</h2>'
-    "<p>Dense detail, kept quiet. Counts above every table.</p></div>",
-    unsafe_allow_html=True,
-)
-t1, t2 = st.columns([3, 2], gap="large")
-with t1:
-    # FIX (v3): fewer columns so nothing truncates.
-    acct_show = acct_summary.rename(columns={
-        "customer": "Customer", "txn_count": "Txns", "net_flows": "Net (Rs)", "total_volume": "Volume (Rs)"
-    })[["Customer", "Txns", "Net (Rs)", "Volume (Rs)"]]
-    show_table("Account summary (Pandas)", f"{len(acct_summary)} accounts, by total volume.", acct_show, ["Txns", "Net (Rs)", "Volume (Rs)"])
-
-    yearly_show = yearly.rename(columns={"year": "Year", "txn_count": "Txns", "net": "Net (Rs)"})
-    show_table("Yearly summary", f"{len(yearly)} years.", yearly_show, ["Txns", "Net (Rs)"])
-
-    st.markdown(
-        "<div class='reveal'><div class='table-title'>Recent transactions</div>"
-        f"<div class='table-caption'>Latest 15 of {len(view)} in filtered view.</div></div>",
-        unsafe_allow_html=True,
-    )
-    recent = view.sort_values("date", ascending=False).head(15) if len(view) else view
-    if len(recent):
-        recent_show = pd.DataFrame({
-            "Date": recent["date"].astype(str).str.slice(0, 10),
-            "Customer": recent["customer"],
-            "Type": recent["type"],
-            "Amount (Rs)": recent["amount"],
-        })
-        st.markdown(apple_table(recent_show, ["Amount (Rs)"]), unsafe_allow_html=True)
-    else:
-        st.markdown(apple_table(pd.DataFrame()), unsafe_allow_html=True)
-
-with t2:
-    acct_df = pd.DataFrame(SAMPLE_CUSTOMERS)
-    acct_show2 = pd.DataFrame({
-        "Name": acct_df["name"],
-        "Branch": acct_df["branch"],
-        "Balance (Rs)": acct_df["balance"],
-    })
-    show_table("Accounts and branches", "Seeded customers. Balances update in the transfer demo.", acct_show2, ["Balance (Rs)"])
-    st.markdown(
-        '<div class="callout reveal">Blue is action. Ink is neutral. Red is risk. Nothing else is coloured.</div>',
-        unsafe_allow_html=True,
-    )
-
-# ---------------- 05 risk ----------------
-st.markdown(
-    '<div class="sec reveal"><div class="sec-eyebrow">Risk</div><h2>Suspicious transactions</h2>'
-    "<p>Large amount at or above the threshold, bursts of 3+ per account per day, "
-    "or night hours (00:00-04:00). Flagged rows need manual review, not auto-block.</p></div>",
-    unsafe_allow_html=True,
-)
-with st.container(border=True):
-    if flagged.empty:
-        st.markdown(
-            '<div class="callout good reveal">Nothing flagged at this threshold &mdash; good. '
-            "Lower the threshold in Controls to see more.</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            f"<div class='table-title reveal'>Flagged rows</div>"
-            f"<div class='table-caption'>{len(flagged)} flagged of {len(df)} ({flagged_rate:.2f}%). Newest first.</div>",
-            unsafe_allow_html=True,
-        )
-        flagged_show = pd.DataFrame({
-            "Date": flagged["date"].astype(str).str.slice(0, 10),
-            "Customer": flagged["customer"],
-            "Type": flagged["type"],
-            "Amount (Rs)": flagged["amount"],
-        })
-        st.markdown(apple_table(flagged_show, ["Amount (Rs)"]), unsafe_allow_html=True)
-    st.caption("Rules live in `src/fraud.py` - transparent and auditable.")
-
-# ---------------- 06 transfer demo ----------------
-st.markdown(
-    '<div class="sec reveal"><div class="sec-eyebrow">Transfer demo</div><h2>Try a transfer</h2>'
-    "<p>Balance and format checks, with clear rejections.</p></div>",
-    unsafe_allow_html=True,
-)
-with st.container(border=True):
-    accounts = store.all_numbers()
-    sim_cols = st.columns(4)
-    with sim_cols[0]:
-        from_no = st.selectbox("From account", accounts)
-        amt = st.number_input("Amount (Rs)", min_value=1.0, value=2000.0, step=100.0)
-    with sim_cols[1]:
-        to_no = st.selectbox("To account", [a for a in accounts if a != from_no])
-    with sim_cols[2]:
-        st.caption("Action")
-        do_transfer = st.button("Execute transfer", width="stretch")
-    with sim_cols[3]:
-        st.caption("Undo")
-        if st.button("Undo last", width="stretch"):
-            undone = stack.pop()
-            if undone:
-                st.info(f"Undid {undone['txn_ref']} (demo balance restore).")
-            else:
-                st.warning("Nothing to undo.")
-
-    if do_transfer:
-        src_acc = store.get(from_no)
-        bal = float(src_acc["balance"]) if src_acc else 0.0
-        if not validate_account_no(from_no) or not validate_account_no(to_no):
-            st.error("Invalid account number - regex check failed (10-16 digits).")
-        elif float(amt) <= 0:
-            st.error("Amount must be positive.")
-        elif bal < float(amt):
-            st.error(f"Insufficient balance - available Rs {bal:,.2f}, requested Rs {float(amt):,.2f}. Transaction rejected.")
+# ================================================================= BANKING
+with tabs[1]:
+    section("Banking desk", "Deposits, withdrawals, transfers and balance enquiry. Every action is validated and can be undone.")
+    if st.session_state.get("flash"):
+        st.success(st.session_state.pop("flash"))
+    left, right = st.columns([1.35, 1])
+    with left, st.container(border=True):
+        op = st.segmented_control("Action", ["Deposit", "Withdraw", "Transfer", "Balance enquiry"],
+                                  default="Deposit", label_visibility="collapsed")
+        if op == "Balance enquiry":
+            acc_no = st.selectbox("Account", acct_numbers, format_func=acct_label.get)
+            a = bank.accounts.get(acc_no)
+            last = bank.history.for_account(acc_no)[-1:] or [None]
+            st.markdown(
+                f"<div class='receipt'>Available balance<br><span style='font-size:1.8rem;font-weight:700;color:{INK}'>"
+                f"{rs(a['balance'], 2)}</span><br>Withdrawable now: <b>{rs(max(a['balance'] - MIN_BALANCE, 0), 2)}</b> "
+                f"(minimum balance {rs(MIN_BALANCE)})<br>Last activity: <b>{last[0]['timestamp'].replace('T', ' ')[:16] if last[0] else '-'}</b>"
+                f"</div>", unsafe_allow_html=True)
         else:
-            src_acc["balance"] = round(bal - float(amt), 2)
-            dst = store.get(to_no)
-            if dst:
-                dst["balance"] = round(float(dst["balance"]) + float(amt), 2)
-            ref = generate_txn_ref(seed=f"{from_no}{to_no}{amt}{len(txns)}")
-            new_txn = {
-                "txn_ref": ref,
-                "account_no": from_no,
-                "customer": src_acc["name"],
-                "type": "transfer_out",
-                "counterparty": f"Transfer to {to_no[-4:]}",
-                "amount": float(amt),
-                "date": __import__("datetime").date.today().isoformat(),
-                "channel": "NetBanking",
-            }
-            txns.append(new_txn)
-            history.append(new_txn)
-            stack.push(new_txn)
-            queue.enqueue(new_txn)
-            st.session_state.txns = txns
-            st.success(f"Done. Ref {ref} · New balance Rs {src_acc['balance']:,.2f}")
+            with st.form("txn", clear_on_submit=False, border=False):
+                if op == "Transfer":
+                    c1, c2 = st.columns(2)
+                    src_no = c1.selectbox("From", acct_numbers, format_func=acct_label.get)
+                    dst_no = c2.selectbox("To", acct_numbers, index=1, format_func=acct_label.get)
+                else:
+                    src_no = st.selectbox("Account", acct_numbers, format_func=acct_label.get)
+                c1, c2 = st.columns(2)
+                amount = c1.number_input("Amount (₹)", min_value=0.0, value=5000.0, step=500.0, format="%.2f")
+                note = c2.text_input("Note (optional)", placeholder="e.g. Rent December")
+                later = op == "Transfer" and st.checkbox("Add to transfer queue instead of sending now")
+                go_btn = st.form_submit_button(f"Confirm {op.lower()}", width="stretch", type="primary")
+            if go_btn:
+                try:
+                    if op == "Deposit":
+                        t = bank.deposit(src_no, amount, note or "Cash deposit")
+                    elif op == "Withdraw":
+                        t = bank.withdraw(src_no, amount, note or "Cash withdrawal")
+                    elif later:
+                        bank.schedule_transfer(src_no, dst_no, amount, note)
+                        t = None
+                        st.session_state.flash = f"Queued. {len(bank.queue)} transfer(s) waiting in the queue."
+                        st.rerun()
+                    else:
+                        t, _ = bank.transfer(src_no, dst_no, amount, note)
+                    if t:
+                        st.session_state.flash = (f"{op} successful · Ref {t['txn_ref']} · "
+                                                  f"New balance {rs(t['balance_after'], 2)}")
+                        st.rerun()
+                except BankError as exc:
+                    st.error(str(exc))
+                except Exception as exc:  # anything unexpected is reported, never crashes the app
+                    st.error(f"Unexpected error: {exc}")
 
-st.caption(
-    f"Structures active: dict accounts ({len(accounts)}) · list history ({history.total()} moves) · "
-    f"queue ({len(queue.pending())} pending) · stack undo · defaultdict grouped ({len(grouped)} accounts)."
-)
+    with right:
+        with st.container(border=True):
+            section("Undo", "Stack (last in, first out)")
+            top = bank.undo_stack.peek()
+            st.caption(f"{len(bank.undo_stack)} action(s) can be undone." if top else "Nothing to undo yet.")
+            if st.button("Undo last action", width="stretch", disabled=top is None):
+                try:
+                    st.session_state.flash = bank.undo_last()
+                    st.rerun()
+                except BankError as exc:
+                    st.warning(str(exc))
+        with st.container(border=True):
+            section("Transfer queue", "Queue (first in, first out)")
+            q = bank.queue.items()
+            if q:
+                st.dataframe(pd.DataFrame(q), hide_index=True, width="stretch",
+                             column_config={"amount": MONEY})
+                if st.button("Process queue", width="stretch"):
+                    lines = [f"{rs(i['amount'], 2)} {i['from'][-4:]} → {i['to'][-4:]}: {o}" for i, o in bank.process_queue()]
+                    st.session_state.flash = "Queue processed. " + " | ".join(lines)
+                    st.rerun()
+            else:
+                st.caption("No transfers waiting.")
 
-# ---------------- EXTRA 1 ----------------
-st.markdown(
-    '<div class="sec reveal"><div class="sec-eyebrow">Extra 1 &middot; Insights</div><h2>Monthly insights and savings goal</h2>'
-    "<p>Income, spend, net, savings rate, and a monthly-compounding goal projection.</p></div>",
-    unsafe_allow_html=True,
-)
-with st.container(border=True):
-    insights_show = insights.rename(columns={
-        "month": "Month", "total_in": "In (Rs)", "total_out": "Out (Rs)",
-        "net": "Net (Rs)", "savings_rate": "Savings %",
-    })
-    keep = [c for c in ["Month", "In (Rs)", "Out (Rs)", "Net (Rs)", "Savings %"] if c in insights_show.columns]
-    show_table("Monthly insights", f"{len(insights)} months. Savings rate is net as % of income.", insights_show[keep], keep)
-    g1, g2, g3, g4 = st.columns([1, 1, 1, 2])
-    with g1:
-        cur_bal = st.number_input("Current balance Rs", min_value=0.0, value=31900.0, step=500.0)
-    with g2:
-        monthly_save = st.number_input("Save / month Rs", min_value=0.0, value=3000.0, step=500.0)
-    with g3:
-        n_months = st.number_input("Months", min_value=1, value=12, step=1)
-    with g4:
-        rate = st.number_input("Annual rate %", min_value=0.0, value=6.0, step=0.5)
-    proj = goal_projection(float(cur_bal), float(monthly_save), int(n_months), float(rate))
-    if proj:
-        p_df = pd.DataFrame(proj)
-        fig_goal = go.Figure()
-        fig_goal.add_trace(go.Scatter(
-            x=p_df["month"], y=p_df["balance"], mode="lines+markers",
-            line=dict(color=BLUE, width=3, shape="spline", smoothing=0.4),
-            marker=dict(color=BLUE, size=5),
-            fill="tozeroy", fillcolor="rgba(0,113,227,0.10)",
-            hovertemplate="Month %{x}<br>Balance: Rs %{y:,.0f}<extra></extra>"))
-        style_fig(fig_goal)
-        fig_goal.update_yaxes(title="Balance Rs")
-        st.plotly_chart(fig_goal, width="stretch", key="goal_apple")
-        st.caption(f"Projected end balance: Rs {p_df['balance'].iloc[-1]:,.2f} in {int(n_months)} months (monthly compounding, demo only).")
+    with st.container(border=True):
+        section("Open a new account", "Name, phone, email and PAN are validated with regular expressions.")
+        with st.form("open", clear_on_submit=True, border=False):
+            c = st.columns(3)
+            name = c[0].text_input("Full name", placeholder="Ananya Sharma")
+            phone = c[1].text_input("Mobile", placeholder="9876543210")
+            email = c[2].text_input("Email", placeholder="ananya@example.com")
+            c = st.columns(3)
+            pan = c[0].text_input("PAN", placeholder="ABCDE1234F")
+            branch = c[1].selectbox("Branch", ["Jayanagar", "Koramangala", "Malleshwaram", "HSR Layout", "Whitefield"])
+            opening = c[2].number_input("Opening deposit (₹)", min_value=0.0, value=5000.0, step=500.0)
+            if st.form_submit_button("Open account", width="stretch"):
+                try:
+                    acc = bank.open_account(name, phone, email, pan, branch, opening)
+                    st.session_state.flash = f"Account {acc['account_no']} opened for {acc['name']} with {rs(opening, 2)}."
+                    st.rerun()
+                except BankError as exc:
+                    st.error(str(exc))
 
-# ---------------- EXTRA 2 ----------------
-st.markdown(
-    '<div class="sec reveal"><div class="sec-eyebrow">Extra 2 &middot; Statement</div><h2>One-click account statement</h2>'
-    "<p>Text statement with running balance. Download it directly from the dashboard.</p></div>",
-    unsafe_allow_html=True,
-)
-with st.container(border=True):
-    stmt_cust = st.selectbox("Statement for customer", sorted(df["customer"].unique().tolist()))
-    stmt_txns = [t for t in txns if t["customer"] == stmt_cust] if txns else []
-    acct_no = stmt_txns[0]["account_no"] if stmt_txns else "-"
-    statement = storage.export_statement(acct_no, stmt_cust, stmt_txns)
-    st.markdown(f"<div class='statement'>{html.escape(statement)}</div>", unsafe_allow_html=True)
-    st.download_button("Download statement (.txt)", statement, file_name=f"statement_{stmt_cust.replace(' ', '_')}.txt", width="stretch")
+# ================================================================= ANALYTICS
+with tabs[2]:
+    period = st.segmented_control("Period", ["Daily", "Monthly", "Yearly"], default="Monthly", label_visibility="collapsed")
+    c1, c2 = st.columns([1, 3])
+    who = c1.selectbox("Customer", ["All customers"] + [a["name"] for a in accounts])
+    view = df if who == "All customers" else df[df["customer"] == who]
+    nums = analysis.summary_numbers(view)
+    c = st.columns(4)
+    kpi(c[0], "Transactions", f"{nums['count']:,}")
+    kpi(c[1], "Average amount", rs(nums["mean"]), f"median {rs(nums['median'])}")
+    kpi(c[2], "Std deviation", rs(nums["std"]), "spread of amounts (NumPy)")
+    kpi(c[3], "95th percentile", rs(nums["p95"]), "95% of transactions are below this")
+    st.write("")
 
-# ---------------- checks ----------------
-st.markdown(
-    '<div class="sec reveal"><div class="sec-eyebrow">Checks &middot; Detail</div><h2>Regex checks and scraping detail</h2></div>',
-    unsafe_allow_html=True,
-)
-checks = pd.DataFrame([
-    {"Check": "Account no (10-16 digits)", "Result": "rev", "Pass": "Pass" if validate_account_no("2601299501") else "Fail"},
-    {"Check": "PAN format", "Result": "BCCCC1234F", "Pass": "Pass" if validate_pan("BCCCC1234F") else "Fail"},
-    {"Check": "TXN ref (TXN+8-14)", "Result": generate_txn_ref(), "Pass": "Pass" if validate_txn_ref(generate_txn_ref()) else "Fail"},
-    {"Check": "Indian phone (6-9 start)", "Result": "9019709994", "Pass": "Pass" if validate_phone("9019709994") else "Fail"},
-])
-show_table("Validation results", "Regex checks from src/validation.py.", checks, [])
+    if period == "Daily":
+        stats = analysis.daily_stats(view[view["timestamp"] >= pd.Timestamp.today() - pd.Timedelta(days=60)])
+        key = "date"
+    elif period == "Yearly":
+        stats, key = analysis.yearly_stats(view), "year"
+        stats["year"] = stats["year"].astype(str)
+    else:
+        stats, key = analysis.monthly_stats(view), "month"
 
-# FIX (v3): scrape detail as styled status cards, not a raw JSON block.
-si = st.session_state.scrape_info
-ok = bool(si.get("ok"))
-url = si.get("url") or "Not run yet"
-pcts = si.get("pcts", []) or []
-chars = int(si.get("raw_chars", 0) or 0)
-status_txt = "Figures found" if ok else ("Attempted, none found" if url != "Not run yet" else "Offline (seeded)")
-st.markdown(
-    "<div class='scrape-grid reveal'>"
-    f"<div class='scrape-tile'><div class='scrape-lbl'>Status</div><div class='scrape-val'>{html.escape(status_txt)}</div></div>"
-    f"<div class='scrape-tile'><div class='scrape-lbl'>Source</div><div class='scrape-val small'>{html.escape(str(url))}</div></div>"
-    f"<div class='scrape-tile'><div class='scrape-lbl'>Figures found</div><div class='scrape-val'>{len(pcts)}</div></div>"
-    f"<div class='scrape-tile'><div class='scrape-lbl'>Page chars</div><div class='scrape-val'>{chars:,}</div></div>"
-    "</div>",
-    unsafe_allow_html=True,
-)
-if pcts:
-    st.caption("Sample figures parsed: " + ", ".join(f"{p}%" for p in pcts[:8]))
-else:
-    st.caption("Use Try live scrape in Controls. Seeded fallback keeps the demo working offline.")
+    with st.container(border=True):
+        section(f"{period} money in and out", "Last 60 days" if period == "Daily" else "")
+        if period == "Daily":
+            stats["net_7d"] = stats["net"].rolling(7, min_periods=1).mean()
+            fig = go.Figure()
+            fig.add_bar(x=stats[key], y=stats["net"], name="Net per day",
+                        marker_color=[GREEN if v >= 0 else RED for v in stats["net"]], opacity=.55)
+            fig.add_scatter(x=stats[key], y=stats["net_7d"], name="7-day average", line=dict(color=INK, width=2))
+        else:
+            fig = go.Figure()
+            fig.add_bar(x=stats[key], y=stats["money_in"], name="Money in", marker_color=BRAND)
+            fig.add_bar(x=stats[key], y=stats["money_out"], name="Money out", marker_color="#93C5FD")
+            fig.update_layout(barmode="group", bargap=.3)
+        st.plotly_chart(style(fig, 340), width="stretch")
+        show = stats.drop(columns=[c for c in ["net_7d"] if c in stats]).copy()
+        if key == "date":
+            show["date"] = show["date"].dt.strftime("%d %b %Y")
+        st.dataframe(show.sort_values(key, ascending=False), hide_index=True, width="stretch", height=260,
+                     column_config={k: MONEY for k in ["money_in", "money_out", "net", "average", "largest"]}
+                     | {"spend_change_pct": st.column_config.NumberColumn("Spend change", format="%.1f%%")})
 
-st.markdown(
-    '<div class="footer reveal"><div class="rule"></div>'
-    "<span>Group 4 · Rahul S R, P Kavi Arasu, Prachodna B, Sarvesh MT · Python Activity 3</span><br>"
-    "<span>Streamlit dashboard · Demo data is seeded</span></div>",
-    unsafe_allow_html=True,
-)
+    left, right = st.columns(2)
+    with left, st.container(border=True):
+        section("When people bank", "Transactions by weekday and hour")
+        heat = analysis.hourly_heat(view)
+        fig = px.imshow(heat, color_continuous_scale=["#F8FAFC", "#BFDBFE", BRAND], aspect="auto")
+        fig.update_coloraxes(showscale=False)
+        st.plotly_chart(style(fig, 280), width="stretch")
+    with right, st.container(border=True):
+        section("Channels", "How transactions are made")
+        ch = analysis.channel_mix(view)
+        fig = px.bar(ch, x="channel", y="transactions", color_discrete_sequence=[BRAND])
+        st.plotly_chart(style(fig, 280), width="stretch")
+
+    if who != "All customers":
+        with st.container(border=True):
+            section(f"Monthly insights · {who}", "Savings rate = what was left from income that month")
+            ins = monthly_insights(view)
+            st.dataframe(ins.sort_values("month", ascending=False), hide_index=True, width="stretch",
+                         column_config={"income": MONEY, "spend": MONEY, "net": MONEY,
+                                        "savings_rate_pct": st.column_config.ProgressColumn("Savings rate", min_value=-100, max_value=100, format="%.0f%%"),
+                                        "top_spend": "Biggest spend"})
+
+# ================================================================= RISK
+with tabs[3]:
+    c1, c2 = st.columns([1, 2])
+    threshold = c1.number_input("Large debit threshold (₹)", min_value=10_000, max_value=500_000, value=50_000, step=5_000)
+    flagged = flag_suspicious(df, threshold)
+    fs = fraud_summary(flagged, len(df))
+    dist = risk_distribution(add_risk_scores(df))
+    c = st.columns(4)
+    kpi(c[0], "Flagged", f"{fs['flagged']}", f"{fs['rate_pct']}% of {len(df):,} transactions")
+    kpi(c[1], "High risk", f"{fs['high']}", "score 70 or above")
+    kpi(c[2], "Amount under review", rs(fs["total_amount"]))
+    kpi(c[3], "Most flagged", max(fs["by_customer"], key=fs["by_customer"].get) if fs["by_customer"] else "-")
+    st.write("")
+
+    left, right = st.columns([2, 1])
+    with left, st.container(border=True):
+        section("Transactions to review", "Sorted by risk score. Rules explain why each one was flagged.")
+        level = st.segmented_control("Show", ["All", "High", "Medium", "Low"], default="All", label_visibility="collapsed")
+        show = flagged if level == "All" else flagged[flagged["risk_level"] == level]
+        show = show.assign(when=show["timestamp"].dt.strftime("%d %b %Y, %H:%M"))
+        st.dataframe(show[["when", "customer", "type", "amount", "risk_score", "risk_level", "reasons"]],
+                     hide_index=True, width="stretch", height=420,
+                     column_config={"when": "Time", "customer": "Customer", "type": "Type", "amount": MONEY,
+                                    "risk_score": st.column_config.ProgressColumn("Risk", min_value=0, max_value=100, format="%d"),
+                                    "risk_level": "Level", "reasons": st.column_config.TextColumn("Why", width="large")})
+    with right:
+        with st.container(border=True):
+            section("Risk mix", "All transactions")
+            fig = px.pie(names=list(dist), values=list(dist.values()), hole=.62,
+                         color=list(dist), color_discrete_map={"Low": "#86EFAC", "Medium": "#FCD34D", "High": "#F87171"})
+            fig.update_traces(textinfo="label+percent", textposition="outside")
+            fig.update_layout(showlegend=False)
+            st.plotly_chart(style(fig, 260), width="stretch")
+        with st.container(border=True):
+            section("How it works")
+            st.markdown(
+                "- **Rules:** large debit, 4+ debits in a day, 00:00–04:00 activity, one debit taking 70%+ of balance\n"
+                "- **Risk score:** NumPy z-score of each amount against that customer's own history, plus time and channel\n"
+                "- Flagged items are for **manual review**, not automatic blocking")
+
+# ================================================================= LOAN ADVISOR
+with tabs[4]:
+    section("Loan advisor", "Eligibility from the customer's real salary credits. Rate = live RBI repo rate + bank spread.")
+    repo = rates["rates"].get("Policy Repo Rate", 5.5)
+    left, right = st.columns([1, 1.5])
+    with left, st.container(border=True):
+        acc_no = st.selectbox("Customer", acct_numbers, format_func=acct_label.get, key="loan_acc")
+        kind = st.selectbox("Loan type", list(SPREADS))
+        rate = st.slider("Interest rate (% a year)", 4.0, 20.0, round(repo + SPREADS[kind], 2), 0.05,
+                         help=f"Default = RBI repo {repo:.2f}% + {SPREADS[kind]:.2f}% spread")
+        years = st.slider("Tenure (years)", 1, 30, 20 if kind == "Home loan" else 5)
+        existing = st.number_input("Existing EMIs per month (₹)", min_value=0.0, value=0.0, step=1000.0)
+        income = monthly_income(df, acc_no)
+        elig = eligibility(income, existing, rate, years * 12)
+        amount = st.number_input("Loan amount (₹)", min_value=10_000.0, step=50_000.0,
+                                 value=float(min(max(elig["max_loan"], 100_000), 5_000_000)))
+    with right:
+        pay = emi(amount, rate, years * 12)
+        ok = pay <= elig["emi_capacity"]
+        c = st.columns(3)
+        kpi(c[0], "Monthly EMI", rs(pay), f"for {years * 12} months")
+        kpi(c[1], "You can borrow up to", rs(elig["max_loan"]), f"income {rs(income)}/month")
+        kpi(c[2], "Verdict", "Eligible" if ok else "Too high",
+            f"<span class='{'up' if ok else 'down'}'>EMI {'within' if ok else 'above'} 50% of income</span>")
+        st.write("")
+        with st.container(border=True):
+            sched = amortization(amount, rate, years * 12)
+            total_interest = sched["interest"].sum()
+            section("Repayment", f"Total interest {rs(total_interest)} · total paid {rs(amount + total_interest)}")
+            yearly = sched.assign(year=(sched["month"] - 1) // 12 + 1).groupby("year")[["interest", "principal"]].sum().reset_index()
+            fig = go.Figure()
+            fig.add_bar(x=yearly["year"], y=yearly["principal"], name="Principal", marker_color=BRAND)
+            fig.add_bar(x=yearly["year"], y=yearly["interest"], name="Interest", marker_color="#93C5FD")
+            fig.update_layout(barmode="stack", xaxis_title="Year")
+            st.plotly_chart(style(fig, 300), width="stretch")
+            st.download_button("Download repayment schedule (CSV)", sched.to_csv(index=False),
+                               file_name=f"emi_schedule_{acc_no}.csv", width="stretch")
+
+    with st.container(border=True):
+        section("Savings goal", "How a monthly saving grows with interest")
+        c = st.columns(4)
+        start = c[0].number_input("Starting amount (₹)", min_value=0.0, value=float(bank.balance(acc_no)), step=1000.0)
+        monthly_save = c[1].number_input("Save every month (₹)", min_value=0.0, value=5000.0, step=500.0)
+        months = c[2].number_input("Months", min_value=1, max_value=360, value=24)
+        fd_rate = c[3].number_input("Interest (% a year)", min_value=0.0, max_value=15.0, value=6.5, step=0.25)
+        proj = goal_projection(start, monthly_save, int(months), fd_rate)
+        fig = px.area(proj, x="month", y="balance", color_discrete_sequence=[BRAND])
+        st.plotly_chart(style(fig, 240), width="stretch")
+        st.caption(f"After {int(months)} months: **{rs(proj['balance'].iloc[-1])}**")
+
+# ================================================================= STATEMENTS & DATA
+with tabs[5]:
+    left, right = st.columns([1.4, 1])
+    with left, st.container(border=True):
+        section("Account statement", "Opening balance, every transaction with running balance, closing balance")
+        c = st.columns([2, 1, 1])
+        acc_no = c[0].selectbox("Account", acct_numbers, format_func=acct_label.get, key="stmt_acc")
+        start = c[1].date_input("From", date.today().replace(day=1))
+        end = c[2].date_input("To", date.today())
+        if start > end:
+            st.error("'From' date must be before 'To' date.")
+        else:
+            acc = bank.accounts.get(acc_no)
+            text = storage.statement_text(acc, bank.history.for_account(acc_no), start.isoformat(), end.isoformat())
+            st.code(text, language=None)
+            d1, d2 = st.columns(2)
+            d1.download_button("Download statement (.txt)", text, file_name=f"statement_{acc_no}_{start}_{end}.txt",
+                               width="stretch")
+            d2.download_button("Download statement (.csv)",
+                               storage.statement_csv(bank.history.for_account(acc_no), start.isoformat(), end.isoformat()),
+                               file_name=f"statement_{acc_no}_{start}_{end}.csv", width="stretch")
+
+    with right:
+        with st.container(border=True):
+            section("Financial report", "Yearly and monthly summary for management")
+            report = storage.financial_report(analysis.monthly_stats(df), analysis.yearly_stats(df),
+                                              analysis.summary_numbers(df), len(flag_suspicious(df)),
+                                              bank.accounts.total_balance())
+            st.download_button("Download financial report", report, file_name="financial_report.txt",
+                               width="stretch")
+        with st.container(border=True):
+            section("Save data", "CSV, JSON, text and binary (pickle) files in the data folder")
+            if st.button("Save all files", width="stretch"):
+                try:
+                    for fmt, path in storage.save_all(txns, accounts).items():
+                        st.write(f"✓ {fmt} → `{path}`")
+                except storage.StorageError as exc:
+                    st.error(str(exc))
+        with st.container(border=True):
+            section("Validation lab", "Test the regular expressions")
+            kind = st.selectbox("Check", ["Account number", "PAN", "Mobile", "Email", "Transaction ref", "Find refs in text"])
+            value = st.text_input("Value", placeholder="Type here", key="val_in")
+            if value:
+                if kind == "Find refs in text":
+                    st.json(extract_refs(value))
+                else:
+                    fn = {"Account number": validate_account_no, "PAN": validate_pan, "Mobile": validate_phone,
+                          "Email": validate_email, "Transaction ref": validate_txn_ref}[kind]
+                    (st.success if fn(value) else st.error)("Valid" if fn(value) else "Not valid")
+
+# ================================================================= MARKET RATES
+with tabs[6]:
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        section("RBI policy rates", f"Scraped from {rates['source']} · {'live' if rates.get('live') else 'saved snapshot'} · "
+                                    f"{rates.get('fetched_at', '')}")
+    if c2.button("Refresh from RBI", width="stretch"):
+        with st.spinner("Fetching rbi.org.in ..."):
+            st.session_state.rates = rates = fetch_rbi_rates()
+        if rates.get("live"):
+            st.success("Updated with live figures.")
+        else:
+            st.warning(f"Could not reach RBI, showing saved snapshot. ({rates.get('error', '')})")
+    r = rates["rates"]
+    cols = st.columns(4)
+    for i, (k, v) in enumerate(r.items()):
+        kpi(cols[i % 4], k, f"{v:.2f}%")
+        if i % 4 == 3:
+            cols = st.columns(4)
+    st.write("")
+    with st.container(border=True):
+        section("Reference exchange rates", "Rupees per unit of foreign currency")
+        fx = pd.DataFrame([{"Currency": k, "INR": v} for k, v in rates["fx"].items()])
+        st.dataframe(fx, hide_index=True, width="stretch",
+                     column_config={"INR": st.column_config.NumberColumn(format="₹ %.4f")})
+        st.caption("Figures are extracted with regular expressions from the page text. Used by the Loan advisor.")
+
+st.markdown("<div class='foot'>Group 4 · Rahul S R · P Kavi Arasu · Prachodna B · Sarvesh M T &nbsp;|&nbsp; "
+            "Demo data is generated for teaching purposes</div>", unsafe_allow_html=True)

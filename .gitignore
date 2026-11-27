@@ -1,4 +1,8 @@
 __pycache__/
 *.pyc
 .venv/
-streamlit.log
+.pytest_cache/
+data/transactions.csv
+data/transactions.txt
+data/accounts.json
+data/bank_snapshot.pkl

@@ -1,93 +1,85 @@
 # Banking Transaction & Financial Analysis System
 
-**Python Activity 3 · Group 4** · A premium fintech dashboard for accounts, transfers, fraud flags, daily / monthly / yearly analytics & statements.
+**Python Activity 3 · Group 4**
 
-> Apple-inspired premium design (Apple.com product-page language), built with Streamlit + Plotly. Big honest headlines, generous whitespace, verdict row first, restrained motion, no decorative gradients.
+A Streamlit application for a bank: open accounts, deposit, withdraw, transfer, check balances, monitor
+suspicious activity, analyse transactions, and produce statements and reports.
 
-![Dashboard — overview](screenshots/banking_dashboard.png)
-
-![Dashboard — spending and tables](screenshots/banking_dashboard_mid.png)
-
-![Dashboard — statement and checks](screenshots/banking_dashboard_bottom.png)
-
-## Team (4 members)
+## Team
 
 | Name | USN |
 |---|---|
 | Rahul S R | JCJ26012995 |
 | P Kavi Arasu | JCJ26012989 |
 | Prachodna B | JCJ26012990 |
-| Sarvesh MT | JCJ26013012 |
+| Sarvesh M T | JCJ26013012 |
 
-Source: `1st_Sem_PYTHON Programming _list_MCA_A`, Sheet1.
-
-## Features
-
-- **Accounts & balances** — 6 seeded customers with opening balances, branches and PAN-format placeholders.
-- **Transfers with error handling** — live transfer demo checks account format (regex), amount > 0 and sufficient balance. Insufficient funds are rejected with the exact available / requested amounts. Undo via stack.
-- **Suspicious-transaction detection** — large at/above threshold · burst 3+ per account per day · night hours 00:00–04:00. Transparent, auditable rules; flagged rows need manual review, not auto-block.
-- **Analytics** — daily net flow (60 days), monthly in vs out, yearly count/net, spending by counterparty, transaction mix — all with NumPy + Pandas (groupby, rolling stats, quantiles).
-- **Regex validation** — account numbers (10–16 digits), PAN, TXN refs, Indian phone, email, amount. Plus a demo text-extractor.
-- **Web scraping** — optional live scraping of permitted pages (RBI / data.gov.in) with regex %/Rs parsing. Seeded fallback so the demo always runs offline.
-- **Multi-format storage** — CSV, JSON, text and binary (pickle) for transactions and accounts, plus downloadable account statements.
-- **Extra 1 — Monthly insights & savings goal** — income / spend / net, savings rate, top spend per month, and a monthly-compounding goal projection chart.
-- **Extra 2 — One-click statement export** — per-customer text statement with running balance, downloadable from the dashboard.
-
-## Design choices (research-backed)
-
-- **Layout (Apple product-page):** one idea per scene — hero -> verdict row -> cash flow -> spending -> working tables -> risk -> actions. Huge tight headlines, generous whitespace, hairline borders, rounded bento cards. Topbar removed in favour of a centered hero ("Your money, in focus.").
-- **Typography:** SF stack / Inter. 56px hero, 32px section titles, tabular figures for every number. Largest type carries the verdict (net flow).
-- **Colour:** two grays + one blue (#0071e3). Blue is action, ink is neutral, red is risk. No decorative gradients — colour means state.
-- **Motion (Apple-restrained):** CSS fade-up scroll reveals (IntersectionObserver), KPI count-up, hover lifts on cards, pill buttons with scale feedback. `prefers-reduced-motion` respected. No true scroll-parallax (not possible without JS scroll hacks in Streamlit).
-- **Charts:** Plotly `simple_white` with custom Inter theme. Daily net flow is a 7-day rolling mean (weekly ticks) so the shape reads calmly; monthly in-vs-out grouped bars; sorted horizontal bars for spending/mix (no pie).
-- **Tables:** custom Apple HTML tables (no truncated edges, fewer columns) and styled status cards for scrape detail instead of a raw JSON dump.
-- **Chrome:** Streamlit default header/footer/menu hidden via CSS; theming lives in `.streamlit/config.toml` + CSS variables. No emojis (avoid glyph tofu) — text pills carry status.
-
-## Requirement mapping (Activity 3, Group 4)
-
-| Requirement | Where |
-|---|---|
-| Data structures (dict, list, deque, queue, stack, defaultdict, set via counterparties) | `src/data_structures.py` — used live in `app.py` |
-| NumPy + Pandas | `src/analysis.py` (groupby, rolling stats, quantiles) |
-| Regex | `src/validation.py` (account/PAN/TXN/phone/email) + `src/scraper.py` (Rs/% extraction) |
-| Web scraping (permitted sites) | `src/scraper.py` → RBI / data.gov.in with fallback |
-| CSV / JSON / text / binary storage | `src/storage.py` — `data/` files |
-| Reporting | Statements (`export_statement`), fraud table, insights, in-app charts |
-| Extra features | `src/insights.py` (monthly insights + goal) · statement export in `app.py` |
-
-## Project structure
-
-```
-.
-|-- app.py                 # Streamlit dashboard (premium fintech UI)
-|-- screenshot.py          # Playwright screenshot helper (waits for chart render)
-|-- requirements.txt
-|-- .streamlit/config.toml # Streamlit theme
-|-- screenshots/           # Dashboard screenshots
-|-- data/                  # Saved CSV / JSON / TXT / BIN exports
-`-- src/
-    |-- data_structures.py # dict / list / deque / queue / stack / defaultdict / set
-    |-- analysis.py        # NumPy + Pandas analytics
-    |-- validation.py      # Regex checks + TXN ref generator
-    |-- fraud.py           # Suspicious-transaction rules
-    |-- scraper.py         # Permitted-site scraping + seeded sample
-    |-- storage.py         # CSV / JSON / TXT / BIN + statements
-    `-- insights.py        # Extra: monthly insights + goal projection
-```
-
-## Run
+## Run it
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
+python -m pytest -q        # unit tests
 ```
 
-Open the printed local URL. No API keys needed.
+The app opens with six demo customers and 18 months of generated transactions, replayed through the
+same bank engine the app uses, so every balance is consistent.
 
-## Data
+## Screens
 
-`data/` holds saved exports (`transactions.*`, `accounts.*`). Demo customers & transactions are seeded, realistic values for the assignment demo — swap with real statements where needed.
+| Tab | What it does |
+|---|---|
+| Overview | Total deposits, this month's money in and out, items needing review, cash-flow chart, spending by category, recent activity |
+| Banking | Deposit, withdraw, transfer, balance enquiry, undo, transfer queue, open a new account |
+| Analytics | Daily, monthly and yearly statistics, NumPy summary numbers, weekday-by-hour heatmap, channel mix, monthly insights per customer |
+| Risk monitor | Flagged transactions with reasons and a 0-100 risk score |
+| Loan advisor | EMI, eligibility and repayment schedule; savings-goal projection |
+| Statements & data | Account statement for any date range, financial report, save to CSV / JSON / text / binary, regex validation lab |
+| Market rates | RBI policy rates and reference exchange rates scraped from rbi.org.in |
 
-## GitHub
+## How each requirement is met
 
-This repo is the submission link for Python mam. Code + README are the deliverable; Classroom submission is done separately by the team.
+| Requirement | Where |
+|---|---|
+| Customer profiles, accounts, transaction records | `src/bank.py` (`Bank.open_account`, ledger entries with reference, timestamp, channel, balance after) |
+| Deposits, withdrawals, transfers, balance enquiry | `src/bank.py` · Banking tab |
+| Data structures | `src/data_structures.py`: dict (accounts), list (ledger), deque (recent window, transfer queue), stack (undo), defaultdict, set |
+| Validation of accounts, customers, references | `src/validation.py`: account no, PAN, mobile, email, name, IFSC, TXN reference, plus extraction from free text |
+| Suspicious transactions | `src/fraud.py`: large debit, 4+ debits in a day, 00:00-04:00 activity, one debit taking 70%+ of balance |
+| Daily / monthly / yearly statistics (Pandas + NumPy) | `src/analysis.py` |
+| Public financial information from a permitted site | `src/scraper.py`: requests + BeautifulSoup + regex on rbi.org.in, with a saved snapshot for offline use |
+| Insufficient balance, invalid input, unexpected errors | Custom exceptions in `src/bank.py` (`InsufficientBalance`, `InvalidInput`, `AccountNotFound`, `LimitExceeded`), `StorageError`; minimum balance and daily debit limit enforced |
+| Statements and financial reports | `src/storage.py`: statement with opening/closing balance (TXT and CSV), financial report, CSV / JSON / text / pickle storage |
+
+## Extra features
+
+1. **Smart risk score** (`src/risk.py`). Each amount is compared with the same customer's own history using a
+   NumPy z-score, then combined with time of day and channel into a 0-100 score (Low / Medium / High).
+   Rs 60,000 is normal for one customer and alarming for another; a fixed threshold cannot tell the difference.
+2. **Loan advisor** (`src/loan.py`). Reads each customer's actual salary credits, applies the 50% FOIR rule
+   banks use, and prices the loan off the live RBI repo rate. Shows EMI, maximum eligible loan, a year-by-year
+   principal/interest chart, and a downloadable amortisation schedule.
+
+Also included: monthly savings insights per customer, savings-goal projection, transfer queue, undo.
+
+## Project structure
+
+```
+app.py                  Streamlit interface
+src/
+  bank.py               Bank engine and custom exceptions
+  data_structures.py    AccountStore, TransactionHistory, TransferQueue, UndoStack
+  validation.py         Regular expressions
+  analysis.py           Pandas / NumPy statistics
+  fraud.py              Rule-based suspicious-transaction checks
+  risk.py               Extra 1: statistical risk score
+  loan.py               Extra 2: EMI and eligibility
+  insights.py           Monthly insights and savings goal
+  scraper.py            RBI rates scraper
+  storage.py            Files, statements, reports
+  sample_data.py        Demo customers and transaction history
+tests/test_bank.py      Unit tests
+data/                   Saved files and RBI snapshot
+```
+
+Demo data is generated for teaching purposes; names other than the team are fictional.

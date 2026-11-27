@@ -1,0 +1,22 @@
+{
+  "source": "https://www.rbi.org.in/",
+  "fetched_at": "2026-11-27 09:47",
+  "live": true,
+  "rates": {
+    "Policy Repo Rate": 5.5,
+    "Standing Deposit Facility Rate": 5.25,
+    "Marginal Standing Facility Rate": 5.75,
+    "Bank Rate": 5.75,
+    "Fixed Reverse Repo Rate": 3.35,
+    "CRR": 3.0,
+    "SLR": 18.0
+  },
+  "fx": {
+    "1 USD": 92.9139,
+    "1 GBP": 121.9563,
+    "1 EUR": 102.0086,
+    "100 JPY": 58.32,
+    "1 AED": 25.2967,
+    "10000 IDR": 50.579
+  }
+}

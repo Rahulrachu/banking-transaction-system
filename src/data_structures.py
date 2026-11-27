@@ -1,16 +1,23 @@
-"""Data structures for Banking Transaction & Financial Analysis (Python Activity 3, Group 4)."""
+"""Core data structures used by the bank engine.
+
+dict         -> accounts keyed by account number (O(1) lookup)
+list         -> complete, append-only transaction ledger
+deque        -> rolling window of recent activity, and the FIFO transfer queue
+list (stack) -> undo stack (LIFO)
+defaultdict  -> transactions grouped per account
+set          -> unique counterparties
+"""
 
 from __future__ import annotations
 
-from collections import deque, defaultdict
-from typing import Dict, List
+from collections import defaultdict, deque
 
 
 class AccountStore:
-    """Dict-backed accounts: account_no -> account dict (O(1) lookup)."""
+    """Accounts stored in a dictionary: account_no -> account dict."""
 
     def __init__(self) -> None:
-        self._accounts: Dict[str, dict] = {}
+        self._accounts: dict[str, dict] = {}
 
     def add(self, account: dict) -> None:
         self._accounts[account["account_no"]] = account
@@ -18,58 +25,80 @@ class AccountStore:
     def get(self, account_no: str) -> dict | None:
         return self._accounts.get(account_no)
 
-    def all_numbers(self) -> List[str]:
-        return sorted(self._accounts.keys())
+    def exists(self, account_no: str) -> bool:
+        return account_no in self._accounts
+
+    def all(self) -> list[dict]:
+        return list(self._accounts.values())
+
+    def numbers(self) -> list[str]:
+        return sorted(self._accounts)
 
     def total_balance(self) -> float:
-        return sum(float(a.get("balance", 0)) for a in self._accounts.values())
+        return round(sum(a["balance"] for a in self._accounts.values()), 2)
+
+    def __len__(self) -> int:
+        return len(self._accounts)
 
 
 class TransactionHistory:
-    """List + deque: full log (list) and rolling window (deque, maxlen)."""
+    """Full ledger (list) plus a fixed-size window of recent entries (deque)."""
 
-    def __init__(self, window: int = 30) -> None:
-        self._log: List[dict] = []
-        self._window: deque = deque(maxlen=window)
+    def __init__(self, window: int = 50) -> None:
+        self._log: list[dict] = []
+        self._recent: deque = deque(maxlen=window)
 
     def append(self, txn: dict) -> None:
         self._log.append(txn)
-        self._window.append(txn)
+        self._recent.append(txn)
 
-    def all(self) -> List[dict]:
+    def remove(self, txn_ref: str) -> None:
+        self._log = [t for t in self._log if t["txn_ref"] != txn_ref]
+        self._recent = deque((t for t in self._recent if t["txn_ref"] != txn_ref), maxlen=self._recent.maxlen)
+
+    def all(self) -> list[dict]:
         return list(self._log)
 
-    def recent(self, n: int = 10) -> List[dict]:
-        return list(self._window)[-n:]
+    def recent(self, n: int = 10) -> list[dict]:
+        return list(self._recent)[-n:][::-1]
 
-    def total(self) -> int:
+    def for_account(self, account_no: str) -> list[dict]:
+        return [t for t in self._log if t["account_no"] == account_no]
+
+    def __len__(self) -> int:
         return len(self._log)
 
 
-class PendingQueue:
-    """Queue (FIFO) for pending transfers to process in order."""
+class TransferQueue:
+    """FIFO queue of scheduled transfers, processed in the order they were added."""
 
     def __init__(self) -> None:
         self._queue: deque = deque()
 
-    def enqueue(self, txn: dict) -> None:
-        self._queue.append(txn)
+    def enqueue(self, item: dict) -> None:
+        self._queue.append(item)
 
     def dequeue(self) -> dict | None:
         return self._queue.popleft() if self._queue else None
 
-    def pending(self) -> List[dict]:
+    def items(self) -> list[dict]:
         return list(self._queue)
+
+    def __len__(self) -> int:
+        return len(self._queue)
 
 
 class UndoStack:
-    """Stack (LIFO) of applied transactions for undo demo."""
+    """LIFO stack of reversible operations."""
 
-    def __init__(self) -> None:
-        self._stack: List[dict] = []
+    def __init__(self, limit: int = 20) -> None:
+        self._stack: list[dict] = []
+        self._limit = limit
 
-    def push(self, txn: dict) -> None:
-        self._stack.append(txn)
+    def push(self, op: dict) -> None:
+        self._stack.append(op)
+        if len(self._stack) > self._limit:
+            self._stack.pop(0)
 
     def pop(self) -> dict | None:
         return self._stack.pop() if self._stack else None
@@ -77,15 +106,16 @@ class UndoStack:
     def peek(self) -> dict | None:
         return self._stack[-1] if self._stack else None
 
+    def __len__(self) -> int:
+        return len(self._stack)
 
-def group_by_account(transactions: List[dict]) -> Dict[str, List[dict]]:
-    """Group transactions by account using defaultdict(list)."""
-    grouped: Dict[str, List[dict]] = defaultdict(list)
+
+def group_by_account(transactions: list[dict]) -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = defaultdict(list)
     for txn in transactions:
-        grouped[txn.get("account_no", "Unknown")].append(txn)
+        grouped[txn["account_no"]].append(txn)
     return dict(grouped)
 
 
-# Set demo: unique counterparties
-def unique_counterparties(transactions: List[dict]) -> List[str]:
-    return sorted({t.get("counterparty", "") for t in transactions if t.get("counterparty")})
+def unique_counterparties(transactions: list[dict]) -> set[str]:
+    return {t["counterparty"] for t in transactions if t.get("counterparty")}
