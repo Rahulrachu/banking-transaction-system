@@ -2,7 +2,7 @@
 
 **Python Activity 3 · Group 4** · A premium fintech dashboard for accounts, transfers, fraud flags, daily / monthly / yearly analytics & statements.
 
-> Clean-light fintech design (Mercury-style calm), built with Streamlit + Plotly. Verdict row first, colour means state only, tabular numbers, no decorative gradients.
+> Apple-inspired premium design (Apple.com product-page language), built with Streamlit + Plotly. Big honest headlines, generous whitespace, verdict row first, restrained motion, no decorative gradients.
 
 ![Dashboard — overview](screenshots/banking_dashboard.png)
 
@@ -35,10 +35,12 @@ Source: `1st_Sem_PYTHON Programming _list_MCA_A`, Sheet1.
 
 ## Design choices (research-backed)
 
-- **Layout:** verdict row → cash flow → spending → working tables → risk → actions. Three-tier hierarchy (summary, context, detail) with progressive disclosure — Stripe/Mercury pattern.
-- **Typography:** Inter at 6 sizes, tabular figures for every number so columns scan vertically. Largest type carries the verdict (net flow).
-- **Colour:** navy / emerald / slate only. Green = money in, red = risk, amber = review. No decorative gradients — colour means state.
-- **Charts:** Plotly `simple_white` template with custom Inter theme, light grids, sentence titles with units, one chart = one message. Sorted horizontal bars instead of a pie (exact reading beats angle judgement).
+- **Layout (Apple product-page):** one idea per scene — hero -> verdict row -> cash flow -> spending -> working tables -> risk -> actions. Huge tight headlines, generous whitespace, hairline borders, rounded bento cards. Topbar removed in favour of a centered hero ("Your money, in focus.").
+- **Typography:** SF stack / Inter. 56px hero, 32px section titles, tabular figures for every number. Largest type carries the verdict (net flow).
+- **Colour:** two grays + one blue (#0071e3). Blue is action, ink is neutral, red is risk. No decorative gradients — colour means state.
+- **Motion (Apple-restrained):** CSS fade-up scroll reveals (IntersectionObserver), KPI count-up, hover lifts on cards, pill buttons with scale feedback. `prefers-reduced-motion` respected. No true scroll-parallax (not possible without JS scroll hacks in Streamlit).
+- **Charts:** Plotly `simple_white` with custom Inter theme. Daily net flow is a 7-day rolling mean (weekly ticks) so the shape reads calmly; monthly in-vs-out grouped bars; sorted horizontal bars for spending/mix (no pie).
+- **Tables:** custom Apple HTML tables (no truncated edges, fewer columns) and styled status cards for scrape detail instead of a raw JSON dump.
 - **Chrome:** Streamlit default header/footer/menu hidden via CSS; theming lives in `.streamlit/config.toml` + CSS variables. No emojis (avoid glyph tofu) — text pills carry status.
 
 ## Requirement mapping (Activity 3, Group 4)
